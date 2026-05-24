@@ -25,7 +25,13 @@ inputs:
     license: research-use, anonymized samples (declared not human-subjects research)
     source: "Ghahremani et al. 2023, MICCAI (PMC10571229). 8 HNSCC patients from Moffitt Cancer Center; markers DAPI/CD3/CD8/FoxP3/PanCK. Download via scripts/download_pmc10571229.sh."
 
-  - url: https://zenodo.org/records/8367318  # PMC10571229 dataset archive
+  # NOTE (v0.0 download log 2026-05-24): Zenodo record 8367318 was the wrong
+  # ID and yielded only a 7-KB stray Python script. The DeepLIIF source repo
+  # (cloned successfully above) points at Zenodo 4751737 as the general DeepLIIF
+  # training data; the PMC10571229-specific HNSCC ROI archive likely lives at
+  # a separate URL (candidate: NIH BioStudies or direct Nadeem-lab mirror).
+  # Tuesday-morning Arm-2 prep verifies; Thursday v0.2 (Arm 1) ingests for real.
+  - url: TBD-resolved-in-v0.2  # PMC10571229 HNSCC ROI archive
     path: pmc10571229/rois/
     sha256: TBD-v0.0-download
     size_mb: 5000

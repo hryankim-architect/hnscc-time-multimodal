@@ -33,7 +33,16 @@ fi
 #
 # The Zenodo record-id is parameterised so v0.1 can swap to a mirror if
 # needed.
-ZENODO_RECORD="${PMC_ZENODO_RECORD:-8367318}"
+# v0.0 note: record 8367318 was wrong (yielded a 7-KB stray .py). The correct
+# PMC10571229 HNSCC ROI archive URL needs to be confirmed in v0.2 prep.
+# Until then, refuse to run unless the caller overrides via env var.
+ZENODO_RECORD="${PMC_ZENODO_RECORD:-}"
+if [[ -z "$ZENODO_RECORD" ]]; then
+  echo "$LOG_PREFIX SKIP Zenodo step: PMC10571229 record id unresolved (v0.0)."
+  echo "$LOG_PREFIX Set PMC_ZENODO_RECORD=<id> to enable. Cloning source repo only."
+  echo "$LOG_PREFIX done (source-repo only)"
+  exit 0
+fi
 ZENODO_API="https://zenodo.org/api/records/${ZENODO_RECORD}"
 
 mkdir -p "$DEST/rois"
