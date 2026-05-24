@@ -18,6 +18,10 @@ dependencies = [
     "ipykernel>=6.29.0",
     "nbconvert>=7.16.0",
     "jupyter>=1.0.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.4.0",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +29,14 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.4.0",
+]
+# Arm 1 (IHC) needs Cellpose + scikit-image. Heavy install (pulls torch);
+# opt-in so the genomics-only path stays slim.
+ihc = [
+    "cellpose>=3.0.0",
+    "scikit-image>=0.22.0",
+    "tifffile>=2024.1.0",
+    "pillow>=10.0.0",
 ]
 
 [project.scripts]
@@ -44,6 +56,13 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Polish-Phase5 lesson from P2 v0.1: tests use `pytest.importorskip` before
+# importing optional-dependency modules, which forces module-level imports
+# below a statement. Skip E402 in test files so the importorskip pattern
+# doesn't need # noqa boilerplate on every line.
+"tests/test_*.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

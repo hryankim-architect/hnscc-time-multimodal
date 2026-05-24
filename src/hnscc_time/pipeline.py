@@ -79,38 +79,141 @@ def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
     return {"inputs": results}
 
 
-def run_pipeline(run_name: str, out_dir: Path) -> dict[str, Any]:
-    """Replace this body in your derived repo. The shape is the contract."""
+def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> dict[str, Any]:
+    """Three-arm capability-portrait pipeline.
+
+    Arm 2 (Genomics) runs on real TCGA-HNSC subset data when present;
+    Arm 1 (IHC) runs on the 5 DeepLIIF Sample_Large_Tissues ROIs when the
+    `ihc` extra is installed; Arm 3 (Cross-cohort calibration) joins them.
+
+    Each arm is independently optional — `run_pipeline` skips arms whose
+    inputs are missing and records the skip in the audit ledger rather
+    than failing the run.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     job_id = _run_id(run_name)
+    data_dir = data_dir or Path("data")
 
     audit.emit(
         action="pipeline_start",
         job_id=job_id,
-        fields={"out_dir": str(out_dir)},
+        fields={"out_dir": str(out_dir), "data_dir": str(data_dir)},
     )
 
     metrics: dict[str, float] = {}
+    arm_summaries: dict[str, dict[str, Any]] = {}
 
     with tracking.run(name=job_id, experiment="hnscc_time"):
         tracking.log_params({"run_name": run_name})
+        t_pipeline = time.time()
 
-        # --- begin body (replace in derived repo) ---
-        # Demo body: write a deterministic JSON artifact and emit one metric.
-        t0 = time.time()
-        artifact = {
-            "run_name": run_name,
-            "job_id": job_id,
-            "message": "scaffold demo body",
-        }
-        artifact_path = out_dir / f"{run_name}.json"
-        with artifact_path.open("w", encoding="utf-8") as fh:
-            json.dump(artifact, fh, indent=2, sort_keys=True)
-        elapsed_ms = (time.time() - t0) * 1000.0
-        metrics["body_elapsed_ms"] = elapsed_ms
-        # --- end body ---
+        # ---- Arm 2 (Genomics) -----------------------------------------
+        arm2_t0 = time.time()
+        try:
+            from hnscc_time import cohort as cohort_mod
+            from hnscc_time import genomics as genomics_mod
 
+            cohort_df = cohort_mod.load_cohort(data_dir)
+            audit.emit(
+                action="cohort.tcga_hnsc.assembled",
+                job_id=job_id,
+                fields={"n_patients": int(len(cohort_df))},
+            )
+            arm2 = genomics_mod.run_genomics_arm(cohort_df, out_dir / "time_profiles")
+            audit.emit(
+                action="genomics.time_profiles.computed",
+                job_id=job_id,
+                fields=arm2,
+            )
+            for k, v in arm2.items():
+                if isinstance(v, int | float):
+                    metrics[f"arm2_{k}"] = float(v)
+            arm_summaries["arm2_genomics"] = arm2
+        except FileNotFoundError as exc:
+            audit.emit(
+                action="arm2_skipped_missing_data",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm2_genomics"] = {"skipped": str(exc)}
+        metrics["arm2_elapsed_ms"] = (time.time() - arm2_t0) * 1000.0
+
+        # ---- Arm 1 (IHC) ---------------------------------------------
+        arm1_t0 = time.time()
+        try:
+            from hnscc_time import ihc as ihc_mod
+
+            arm1 = ihc_mod.run_ihc_arm(data_dir, out_dir / "time_profiles")
+            audit.emit(
+                action="ihc.time_profiles.computed",
+                job_id=job_id,
+                fields=arm1,
+            )
+            for k, v in arm1.items():
+                if isinstance(v, int | float):
+                    metrics[f"arm1_{k}"] = float(v)
+            arm_summaries["arm1_ihc"] = arm1
+        except ImportError as exc:
+            audit.emit(
+                action="arm1_skipped_no_ihc_extra",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm1_ihc"] = {"skipped": "ihc extra not installed"}
+        except FileNotFoundError as exc:
+            audit.emit(
+                action="arm1_skipped_missing_data",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm1_ihc"] = {"skipped": str(exc)}
+        metrics["arm1_elapsed_ms"] = (time.time() - arm1_t0) * 1000.0
+
+        # ---- Arm 3 (Cross-cohort calibration) ------------------------
+        arm3_t0 = time.time()
+        try:
+            from hnscc_time import calibrate as calibrate_mod
+
+            arm3 = calibrate_mod.run_calibration_arm(
+                profiles_dir=out_dir / "time_profiles",
+                cohort_df_or_dir=data_dir,
+                out_dir=out_dir / "calibration",
+            )
+            audit.emit(
+                action="calibration.trained",
+                job_id=job_id,
+                fields=arm3,
+            )
+            for k, v in arm3.items():
+                if isinstance(v, int | float):
+                    metrics[f"arm3_{k}"] = float(v)
+            arm_summaries["arm3_calibration"] = arm3
+        except FileNotFoundError as exc:
+            audit.emit(
+                action="arm3_skipped_missing_profiles",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm3_calibration"] = {"skipped": str(exc)}
+        except ValueError as exc:
+            audit.emit(
+                action="arm3_skipped_insufficient_pairs",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm3_calibration"] = {"skipped": str(exc)}
+        metrics["arm3_elapsed_ms"] = (time.time() - arm3_t0) * 1000.0
+
+        metrics["pipeline_elapsed_ms"] = (time.time() - t_pipeline) * 1000.0
         tracking.log_metrics(metrics)
+
+    # Write the per-run summary artifact (used by Makefile + tests)
+    artifact_path = out_dir / f"{run_name}.json"
+    with artifact_path.open("w", encoding="utf-8") as fh:
+        json.dump(
+            {"job_id": job_id, "metrics": metrics, "arms": arm_summaries},
+            fh, indent=2, sort_keys=True,
+        )
 
     audit.emit(
         action="pipeline_end",
@@ -121,6 +224,7 @@ def run_pipeline(run_name: str, out_dir: Path) -> dict[str, Any]:
     return {
         "job_id": job_id,
         "metrics": metrics,
+        "arms": arm_summaries,
         "artifact_path": str(artifact_path),
     }
 

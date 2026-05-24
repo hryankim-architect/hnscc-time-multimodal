@@ -29,23 +29,25 @@ it on entirely public data:
   a genomics-only TIME predictor against IHC ground truth via nearest-
   neighbor matching on clinical + subsite features.
 
-## Release status (v0.0 — scaffold only)
+## Release status (compressed to one session 2026-05-24)
 
-This release ships **the substrate, not the analysis**. It is intentionally
-labelled v0.0 to make that obvious: the v0.1 / v0.2 / v0.3 sprints over the
-following week build the three arms on top.
+The original sprint plan estimated v0.1 / v0.2 / v0.3 across Tue-Fri, but
+the entire 3-arm pipeline landed in a single Sunday-evening session after
+v0.0 shipped. The trade-offs that made this possible are documented openly
+in the per-arm sections below.
 
-| Layer | v0.0 (today) | Lands in |
-|---|---|---|
-| Substrate (audit / tracking / canary) | ✓ inherited from scaffold-template | — |
-| Repo skeleton (pyproject + Makefile + CI + english-only) | ✓ | — |
-| Background data downloads (PMC10571229 + TCGA-HNSC subset) | ✓ kicked off | — |
-| Arm 2 — Genomics deconvolution on RNA-seq | — | **v0.1 (Tue-Wed)** |
-| Arm 1 — IHC cell segmentation + TIME profile (Cellpose on 72 ROIs) | — | **v0.2 (Thu)** |
-| Arm 3 — Cross-cohort calibration (Approach B + held-out validation) | — | **v0.3 (Fri)** |
+| Layer | v0.0 (Sun AM) | v0.1 (Sun PM, Arm 2) | v0.2 (Sun PM, Arm 1) | v0.3 (Sun PM, Arm 3) |
+|---|---|---|---|---|
+| Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ |
+| Repo skeleton + CI + english-only | ✓ | ✓ | ✓ | ✓ |
+| **Arm 2 — Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ |
+| **Arm 1 — IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ |
+| **Arm 3 — Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** |
 
-See `ROADMAP.md` for the day-by-day sprint plan and the cross-link to the
-full design doc.
+See `ROADMAP.md` for what the released contract looks like at each tag,
+and `docs/what-is-out-of-scope.md` for what each arm intentionally does
+not attempt (paired multimodal training, foundation-model fine-tuning on
+n=8, full ~530-patient TCGA-HNSC ingestion, etc.).
 
 ## Why this scoping
 
@@ -113,18 +115,33 @@ python -c "from hnscc_time import audit; ok, n, bad = audit.verify(); print(ok, 
 # Expect: True <small number> None
 ```
 
-## Honest scope (v0.0)
+## Honest scope (v0.3)
 
-This release does not yet:
+What this release **does**:
+- Runs end-to-end on 50 real TCGA-HNSC patients (Arm 2 Genomics) and 5
+  real DeepLIIF Sample_Large_Tissues ROIs (Arm 1 IHC), then cross-cohort
+  calibrates Arm 3 to produce 50 calibrated TIMEProfile predictions.
+- Emits a hash-chained audit ledger that spans `pipeline_start` ->
+  per-arm cohort assembly + profile computation + calibration -> `pipeline_end`.
+- Surfaces a `predict_time_from_genomics(genomics_profile) -> TIMEProfile`
+  callable that is the deployment-ready unit of work.
 
-- Touch a single multiplex-IHC image or RNA-seq count file.
-- Run Cellpose, xCell, EPIC, quanTIseq, or any deconvolution method.
-- Produce a TIME profile JSON.
-- Predict anything clinical.
-
-What it does is establish that the next three sprints (v0.1 / v0.2 / v0.3)
-have somewhere to land that is already CI-green, audit-verifiable, and
-plugged into the same substrate as P1 / P2 / P3.
+What this release **does not** claim:
+- **Statistical generalisation** — n=5 IHC reference is one order of
+  magnitude below what the PMC10571229 full archive would give; the
+  calibration is a *demonstration of the integration pattern*, not a
+  research finding. The README climax table reports the held-out LOO MAE
+  honestly alongside the intercept-only baseline so a reader can see
+  exactly how much signal calibration adds.
+- **True per-marker mIF channels** — the 5 DeepLIIF Sample_Large_Tissues
+  are RGB composites, not the 4-channel mIF stack the PMC dataset would
+  provide. Arm 1 v0.2 uses a documented *heuristic R/G/B -> PanCK/CD8/CD3
+  mapping* as a placeholder; Arm 3 calibration replaces it with the
+  genomics-anchored signal where the IHC channels would otherwise
+  dominate.
+- **Paired patient-level multimodal training** — the 8 PMC patients are
+  not in TCGA-HNSC; we openly use cross-cohort calibration (Approach B)
+  instead of pretending to have paired data.
 
 See `docs/what-is-out-of-scope.md` for the longer list of things this repo
 will *never* attempt (training a vision-language foundation model, paired
