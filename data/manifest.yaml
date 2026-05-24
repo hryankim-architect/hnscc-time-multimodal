@@ -1,44 +1,52 @@
-# Public-data manifest for the capability-portrait demo.
+# Public-data manifest for the P4 capability-portrait demo.
 #
-# Every input listed here must be:
-#   - publicly accessible without controlled-access tier auth
-#   - small enough that `make run` finishes in the README's stated budget
-#   - checksum-verified (sha256) so the demo is byte-reproducible
+# Two cohorts:
+#   - PMC10571229 (Ghahremani et al. 2023, MICCAI)
+#       8 HNSCC patients, multiplex IHC + mIF, 72 ROIs.
+#       Released by the Nadeem lab (MSKCC) under research-use terms;
+#       declared not human-subjects research.
+#   - TCGA-HNSC subset (n=50, stratified by HPV status + subsite)
+#       Bulk RNA-seq + clinical metadata.
+#       Open-tier under the NIH GDC Data Use Agreement.
 #
-# Adding an input requires editing this file AND the README's "minimum
-# subset" claim. That friction is intentional (see docs/what-is-out-of-scope.md).
+# v0.0 ships placeholder entries — actual checksums populate as the
+# scripts/download_*.sh scripts finish on chi-mac-p tonight. v0.1
+# replaces the placeholders with verified sha256 sums.
 #
-# Schema:
-#   inputs:
-#     - url:       https://...                # public URL
-#       path:      relative/path/inside/data/ # destination under data/
-#       sha256:    <64-hex>                   # required
-#       size_mb:   <int>                      # informational
-#       license:   <SPDX or text>             # required
-#       source:    <one-line provenance>      # required
+# Adding an input requires editing this file AND the README's claim.
+# That friction is intentional (see docs/what-is-out-of-scope.md).
 
 inputs:
-  - url: https://example.org/tiny-fixture.tsv
-    path: fixtures/tiny.tsv
-    sha256: 0000000000000000000000000000000000000000000000000000000000000000
-    size_mb: 1
-    license: CC0-1.0
-    source: "Replace this stub in the derived repo with real public-data URLs."
+  # ----- PMC10571229 (IHC ground truth, 8 HNSCC patients) ----------------
+  - url: https://github.com/nadeemlab/DeepLIIF
+    path: pmc10571229/source-repo/
+    sha256: TBD-v0.0-download
+    size_mb: 50
+    license: research-use, anonymized samples (declared not human-subjects research)
+    source: "Ghahremani et al. 2023, MICCAI (PMC10571229). 8 HNSCC patients from Moffitt Cancer Center; markers DAPI/CD3/CD8/FoxP3/PanCK. Download via scripts/download_pmc10571229.sh."
 
-# Per-project examples (uncomment and edit in the derived repo):
-#
-# P3 (tp53-aml-hrd-severity):
-#   - url: https://api.gdc.cancer.gov/data/<file-uuid>
-#     path: tcga-laml/<sample>.vcf.gz
-#     sha256: <hash>
-#     size_mb: 5
-#     license: NIH GDC Data Use Agreement (open tier)
-#     source: TCGA-LAML cohort, GDC Data Portal
-#
-# P1 (healthomics-lab-orchestrator):
-#   - url: https://sra-download.ncbi.nlm.nih.gov/traces/sra<n>/SRR/...
-#     path: rnaseq/SRR1039508_1M.fastq.gz
-#     sha256: <hash>
-#     size_mb: 80
-#     license: Public Domain (SRA)
-#     source: Himes airway smooth muscle (downsampled to 1M reads)
+  - url: https://zenodo.org/records/8367318  # PMC10571229 dataset archive
+    path: pmc10571229/rois/
+    sha256: TBD-v0.0-download
+    size_mb: 5000
+    license: CC-BY-4.0 (Zenodo deposit)
+    source: "72 multiplex IHC ROIs (1356x1012 px at 0.5 um/pixel), pre-extracted 256x256 patches (1072 total) and 512x512 patches (268 total)."
+
+  # ----- TCGA-HNSC subset (RNA-seq for genomics arm) ---------------------
+  - url: https://api.gdc.cancer.gov/data/  # populated per-patient by download script
+    path: tcga_hnsc/star_counts/
+    sha256: TBD-v0.0-download
+    size_mb: 2000
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC cohort subset (n=50), stratified by HPV status + anatomic subsite. STAR-aligned gene counts via GDC API. Fetched by scripts/download_tcga_hnsc.sh."
+
+  - url: https://api.gdc.cancer.gov/files  # clinical metadata endpoint
+    path: tcga_hnsc/clinical.tsv
+    sha256: TBD-v0.0-download
+    size_mb: 1
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "Clinical metadata for the n=50 subset (age, sex, HPV status, subsite, overall survival, vital status)."
+
+# After scripts/download_*.sh finishes (background), the v0.1 commit
+# replaces every TBD-v0.0-download with the actual sha256, and the
+# size_mb fields update to observed values.
