@@ -64,10 +64,11 @@ def _segment_nuclei(image_rgb: np.ndarray) -> tuple[int, np.ndarray]:
     Returns (n_cells, label_mask). The label_mask is a 2-D uint32 array
     with 0 = background and each positive integer = one cell.
 
-    We use the `cyto` model channel set [2, 1] which Cellpose's docs
-    recommend for cytoplasm channel = 2 (green) + nucleus channel = 1
-    (red) — but for our brightfield hematoxylin samples the inverse
-    is closer; we evaluate empirically.
+    Cellpose 4.x removed the legacy ``Cellpose`` size-model wrapper; the
+    direct ``CellposeModel`` interface is the supported path. We default
+    to the bundled ``cpsam`` model which works on both grayscale and
+    RGB tissue inputs without size auto-estimation, then fall back to
+    the older ``cyto`` weights if the new model is unavailable.
     """
     try:
         from cellpose import models
@@ -76,14 +77,28 @@ def _segment_nuclei(image_rgb: np.ndarray) -> tuple[int, np.ndarray]:
             "ihc arm needs the `ihc` extra: `uv sync --extra ihc` (installs cellpose)"
         ) from exc
 
-    model = models.Cellpose(model_type="cyto", gpu=False)
-    masks, _flows, _styles, _diams = model.eval(
+    # cellpose 4.x: CellposeModel is the single entrypoint.
+    # cellpose 3.x: had both Cellpose and CellposeModel; we prefer the
+    # latter since it survived the 4.x rename.
+    if hasattr(models, "CellposeModel"):
+        try:
+            model = models.CellposeModel(gpu=False)
+        except TypeError:
+            # Some intermediate versions required model_type explicitly
+            model = models.CellposeModel(gpu=False, model_type="cyto")
+    else:  # pragma: no cover — extremely old cellpose
+        model = models.Cellpose(model_type="cyto", gpu=False)
+
+    # eval() return shape varies by cellpose version:
+    #   3.x: (masks, flows, styles, diams)
+    #   4.x: (masks, flows, styles)  -- no diams
+    result = model.eval(
         image_rgb,
-        diameter=None,        # auto-estimate
-        channels=[0, 0],      # grayscale
+        diameter=None,
         flow_threshold=0.4,
         cellprob_threshold=0.0,
     )
+    masks = result[0]
     n_cells = int(masks.max())
     return n_cells, masks
 

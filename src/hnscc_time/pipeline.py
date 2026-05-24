@@ -139,6 +139,10 @@ def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> 
         metrics["arm2_elapsed_ms"] = (time.time() - arm2_t0) * 1000.0
 
         # ---- Arm 1 (IHC) ---------------------------------------------
+        # Broad exception catch is intentional: an arm-internal crash
+        # (e.g. cellpose API drift, malformed image) must NOT kill the
+        # subsequent arms. The audit ledger records the exception type
+        # + message so the failure is debuggable from the chain alone.
         arm1_t0 = time.time()
         try:
             from hnscc_time import ihc as ihc_mod
@@ -167,9 +171,18 @@ def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> 
                 fields={"reason": str(exc)},
             )
             arm_summaries["arm1_ihc"] = {"skipped": str(exc)}
+        except Exception as exc:  # noqa: BLE001 — intentional arm isolation
+            audit.emit(
+                action="arm1_failed",
+                job_id=job_id,
+                fields={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            arm_summaries["arm1_ihc"] = {"failed": f"{type(exc).__name__}: {exc}"}
         metrics["arm1_elapsed_ms"] = (time.time() - arm1_t0) * 1000.0
 
         # ---- Arm 3 (Cross-cohort calibration) ------------------------
+        # Broad except for the same reason: a calibration crash should
+        # log + degrade, not corrupt the per-arm summary contract.
         arm3_t0 = time.time()
         try:
             from hnscc_time import calibrate as calibrate_mod
@@ -202,6 +215,13 @@ def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> 
                 fields={"reason": str(exc)},
             )
             arm_summaries["arm3_calibration"] = {"skipped": str(exc)}
+        except Exception as exc:  # noqa: BLE001 — intentional arm isolation
+            audit.emit(
+                action="arm3_failed",
+                job_id=job_id,
+                fields={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            arm_summaries["arm3_calibration"] = {"failed": f"{type(exc).__name__}: {exc}"}
         metrics["arm3_elapsed_ms"] = (time.time() - arm3_t0) * 1000.0
 
         metrics["pipeline_elapsed_ms"] = (time.time() - t_pipeline) * 1000.0
