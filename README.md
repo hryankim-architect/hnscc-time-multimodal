@@ -49,6 +49,34 @@ and `docs/what-is-out-of-scope.md` for what each arm intentionally does
 not attempt (paired multimodal training, foundation-model fine-tuning on
 n=8, full ~530-patient TCGA-HNSC ingestion, etc.).
 
+## Real-data climax (`make run`, n=50 TCGA-HNSC + 5 DeepLIIF ROIs)
+
+End-to-end Sunday-evening smoke produced this — the substrate value is
+the *comparison*, not any single arm's number:
+
+| Arm | What ran | Headline metric |
+|---|---|---|
+| Arm 2 (Genomics) | 50 TCGA-HNSC patients, TPM -> rank-transform -> mean-rank of immune signatures, z-score normalised | TIL score mean **0.637 ± 0.164** across cohort; 47 inflamed / 1 excluded / 2 desert / 0 unknown |
+| Arm 1 (IHC) | 5 DeepLIIF Sample_Large_Tissues ROIs (RGB tissue), Cellpose 4.x CPU segmentation | **6,725 nuclei segmented**; 5 inflamed / 0 excluded / 0 desert (RGB heuristic R/G/B->marker placeholder) |
+| Arm 3 (Calibration) | K-NN on n=5 IHC reference, per-cell-type linear cal, leave-one-IHC-out validation | **mean LOO MAE 0.210 vs intercept-only baseline 0.466 — calibration adds 55% MAE reduction over "predict cohort mean"** |
+
+The Arm 3 headline is the most defensible single number this repo
+produces: it shows that nearest-neighbor cross-cohort calibration is
+genuinely extracting signal over a "just predict the average" baseline,
+even on the deliberately tiny n=5 IHC reference. The full 72-ROI
+PMC10571229 archive (Arm 1 v0.4 candidate) would tighten this further,
+but the *pattern* is already visible.
+
+### What the 55% number means and does not mean
+
+It *means*: the K-NN-anchored linear calibration is doing real work — it
+beats "predict the IHC cohort mean for every patient" by half its error.
+
+It *does not mean*: the calibration is research-grade. n=5 IHC is one
+order of magnitude below what's needed for any peer-reviewable claim.
+The number lives in this README because it is **a working capability
+demo on real public data**, not because it is a finding.
+
 ## Why this scoping
 
 The full P4 plan estimates ~3 weeks part-time. Compressing the whole thing
