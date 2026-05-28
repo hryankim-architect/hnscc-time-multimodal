@@ -1,5 +1,7 @@
 # hnscc-time-multimodal
 
+![ci](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/english-only.yml/badge.svg)
+
 > **Capability portrait, not a research result.** This repo demonstrates how
 > a multimodal Tumor Immune Microenvironment (TIME) prediction pipeline can
 > be staged on the same lab substrate that powers `multiqc-foundation-gate`
