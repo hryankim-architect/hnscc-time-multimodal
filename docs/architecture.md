@@ -1,4 +1,4 @@
-# Architecture — `hnscc-time-multimodal`
+# Architecture, `hnscc-time-multimodal`
 
 This repo stages a three-arm multimodal pipeline on top of the shared scaffold
 substrate. The arms are released independently across v0.1 / v0.2 / v0.3, but
@@ -30,7 +30,7 @@ without re-architecting.
                                    |
                                    v
         +---------------------------------------------------+
-        |  Arm 2 (v0.1) -- Genomics deconvolution           |
+        |  Arm 2 (v0.1), Genomics deconvolution           |
         |    TCGA-HNSC bulk RNA-seq counts (~50 patients)   |
         |    -> normalize (TPM)                             |
         |    -> deconvolution (xCell-equiv / EPIC-equiv)    |
@@ -40,7 +40,7 @@ without re-architecting.
                                    |
                                    v
         +---------------------------------------------------+
-        |  Arm 1 (v0.2) -- IHC cell quantification          |
+        |  Arm 1 (v0.2), IHC cell quantification          |
         |    PMC10571229 ROIs (72 ROIs, 8 patients)         |
         |    -> Cellpose nuclei segmentation                |
         |    -> per-cell marker classification (CD3/CD8/    |
@@ -51,7 +51,7 @@ without re-architecting.
                                    |
                                    v
         +---------------------------------------------------+
-        |  Arm 3 (v0.3) -- Cross-cohort calibration         |
+        |  Arm 3 (v0.3), Cross-cohort calibration         |
         |    For each PMC patient: nearest-neighbor lookup  |
         |      in TCGA-HNSC on subsite + age + HPV          |
         |    Fit a per-cell-type calibration mapping        |
@@ -149,7 +149,7 @@ data/
 
 Only `manifest.yaml`, the per-cohort `README.md` files, and (eventually) the
 50 + 8 = 58 small `time_profile.json` files are tracked in git. Raw images
-and raw RNA-seq counts stay local — only manifest + checksums + derived
+and raw RNA-seq counts stay local, only manifest + checksums + derived
 artifacts.
 
 ---

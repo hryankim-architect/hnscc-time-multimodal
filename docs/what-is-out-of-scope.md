@@ -1,7 +1,7 @@
-# What is out of scope (P4 — `hnscc-time-multimodal`)
+# What is out of scope (P4, `hnscc-time-multimodal`)
 
 This file is the anti-scope-creep ledger for the P4 capability portrait.
-The repo's value comes from being *small and complete* — every item below
+The repo's value comes from being *small and complete*, every item below
 is something a reviewer might reasonably ask for that the v0.0 -> v0.3
 release plan deliberately does not attempt.
 

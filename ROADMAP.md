@@ -1,4 +1,4 @@
-# Roadmap — `hnscc-time-multimodal`
+# Roadmap, `hnscc-time-multimodal`
 
 This file is the public face of the sprint plan that turns v0.0 (scaffold
 only) into v0.3 (three-arm multimodal pipeline). It is intentionally short
@@ -11,7 +11,7 @@ This file mirrors only the public-facing engineering plan.
 
 ---
 
-## v0.0 — scaffold + data downloads (today, Sun 2026-05-24)
+## v0.0, scaffold + data downloads (today, Sun 2026-05-24)
 
 **Goal**: ship a substrate-clean repo on GitHub with the two real datasets
 downloading in the background so Tuesday's work can start instantly.
@@ -28,17 +28,17 @@ downloading in the background so Tuesday's work can start instantly.
 
 ---
 
-## v0.1 — Arm 2, Genomics deconvolution (Tue-Wed 2026-05-26/27)
+## v0.1, Arm 2, Genomics deconvolution (Tue-Wed 2026-05-26/27)
 
 **Goal**: ingest the TCGA-HNSC subset, produce per-patient TIME profile
 JSON files in the common schema, wire into pipeline + audit.
 
-- [ ] `src/hnscc_time/cohort.py` — TCGA-HNSC manifest loader + HPV /
+- [ ] `src/hnscc_time/cohort.py`, TCGA-HNSC manifest loader + HPV /
       subsite stratification
-- [ ] `src/hnscc_time/genomics.py` — TPM normalisation + gene-set
+- [ ] `src/hnscc_time/genomics.py`, TPM normalisation + gene-set
       deconvolution (xCell-equivalent or EPIC port; Python-resident
       so `uv sync` stays small)
-- [ ] `src/hnscc_time/time_schema.py` — Pydantic model for the common
+- [ ] `src/hnscc_time/time_schema.py`, Pydantic model for the common
       TIME profile JSON (matches `docs/architecture.md` §Common-schema)
 - [ ] Wire `pipeline.run_pipeline()` to call cohort -> genomics ->
       `time_profile.write()` for each patient
@@ -52,13 +52,13 @@ JSON files in the common schema, wire into pipeline + audit.
 
 ---
 
-## v0.2 — Arm 1, IHC cell quantification (Thu 2026-05-28)
+## v0.2, Arm 1, IHC cell quantification (Thu 2026-05-28)
 
 **Goal**: process the 72 PMC ROIs through Cellpose + per-marker
 classification, produce per-patient TIME profile JSON files in the same
 common schema.
 
-- [ ] `src/hnscc_time/ihc.py` — Cellpose nuclei segmentation on DAPI
+- [ ] `src/hnscc_time/ihc.py`, Cellpose nuclei segmentation on DAPI
       channel + per-cell marker classification from CD3 / CD8 / FoxP3 /
       PanCK mIF channels
 - [ ] Per-ROI aggregation -> per-region aggregation -> per-patient TIME
@@ -73,13 +73,13 @@ common schema.
 
 ---
 
-## v0.3 — Arm 3, Cross-cohort calibration (Fri 2026-05-29)
+## v0.3, Arm 3, Cross-cohort calibration (Fri 2026-05-29)
 
 **Goal**: fit a calibration mapping from genomics-only TIME profiles to
 IHC-equivalent TIME profiles, validate on held-out PMC patients, surface
 a `predict_time_from_genomics()` callable.
 
-- [ ] `src/hnscc_time/calibrate.py` — nearest-neighbor TCGA->PMC matcher
+- [ ] `src/hnscc_time/calibrate.py`, nearest-neighbor TCGA->PMC matcher
       on subsite + age + HPV; per-cell-type linear calibration mapping
 - [ ] `predict_time_from_genomics(rna_seq_counts) -> TIMEProfile`
 - [ ] Held-out validation: leave-one-PMC-patient-out; report
@@ -104,7 +104,7 @@ Out of scope for this sprint (see `docs/what-is-out-of-scope.md`):
 - Additional deconvolution tools via R bridge (v0.4 candidate)
 - Production-style interactive inference UI (separate deployment project)
 - Foundation-model fine-tuning on histology patches (out of scope
-  permanently — n=8 patients is too small)
+  permanently, n=8 patients is too small)
 
 ---
 

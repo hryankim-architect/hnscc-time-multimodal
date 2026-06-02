@@ -5,7 +5,7 @@
 > **Capability portrait, not a research result.** This repo demonstrates how
 > a multimodal Tumor Immune Microenvironment (TIME) prediction pipeline can
 > be staged on the same lab substrate that powers `multiqc-foundation-gate`
-> and `tp53-aml-hrd-severity` — IHC + bulk RNA-seq deconvolution + cross-
+> and `tp53-aml-hrd-severity`, IHC + bulk RNA-seq deconvolution + cross-
 > cohort calibration, every step bracketed by a hash-chained audit ledger.
 > The clinical/biological claim space is intentionally narrow at v0; the
 > substrate and the integration pattern are the deliverable.
@@ -15,19 +15,19 @@
 For a head-and-neck squamous cell carcinoma (HNSCC) patient where you have
 **either** multiplex IHC **or** bulk RNA-seq (almost never both, in
 real practice), can you produce a comparable Tumor Immune Microenvironment
-profile — quantified the same way, on the same schema, with the same audit
-trail — and use it to drive an immunotherapy patient-selection signal?
+profile, quantified the same way, on the same schema, with the same audit
+trail, and use it to drive an immunotherapy patient-selection signal?
 
 That question is the multimodal CDx pattern in miniature. This repo builds
 it on entirely public data:
 
 - **Multiplex IHC ground truth**: PMC10571229 (Ghahremani et al. 2023,
-  MICCAI) — 8 HNSCC patients from Moffitt Cancer Center, 72 ROIs across
+  MICCAI), 8 HNSCC patients from Moffitt Cancer Center, 72 ROIs across
   tumor core / margin / adjacent stroma, markers DAPI + CD3 + CD8 + FoxP3
   + PanCK.
-- **Bulk RNA-seq cohort**: TCGA-HNSC — ~530 HNSCC patients with paired
+- **Bulk RNA-seq cohort**: TCGA-HNSC, ~530 HNSCC patients with paired
   RNA-seq + clinical (HPV status, survival, subsite).
-- **Cross-cohort integration**: Approach B from the design doc — calibrate
+- **Cross-cohort integration**: Approach B from the design doc, calibrate
   a genomics-only TIME predictor against IHC ground truth via nearest-
   neighbor matching on clinical + subsite features.
 
@@ -42,9 +42,9 @@ in the per-arm sections below.
 |---|---|---|---|---|
 | Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ |
 | Repo skeleton + CI + english-only | ✓ | ✓ | ✓ | ✓ |
-| **Arm 2 — Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ |
-| **Arm 1 — IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ |
-| **Arm 3 — Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** |
+| **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ |
+| **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ |
+| **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** |
 
 See `ROADMAP.md` for what the released contract looks like at each tag,
 and `docs/what-is-out-of-scope.md` for what each arm intentionally does
@@ -53,14 +53,14 @@ n=8, full ~530-patient TCGA-HNSC ingestion, etc.).
 
 ## Real-data climax (`make run`, n=50 TCGA-HNSC + 5 DeepLIIF ROIs)
 
-End-to-end Sunday-evening smoke produced this — the substrate value is
+End-to-end Sunday-evening smoke produced this, the substrate value is
 the *comparison*, not any single arm's number:
 
 | Arm | What ran | Headline metric |
 |---|---|---|
 | Arm 2 (Genomics) | 50 TCGA-HNSC patients, TPM -> rank-transform -> mean-rank of immune signatures, z-score normalised | TIL score mean **0.637 ± 0.164** across cohort; 47 inflamed / 1 excluded / 2 desert / 0 unknown |
 | Arm 1 (IHC) | 5 DeepLIIF Sample_Large_Tissues ROIs (RGB tissue), Cellpose 4.x CPU segmentation | **6,725 nuclei segmented**; 5 inflamed / 0 excluded / 0 desert (RGB heuristic R/G/B->marker placeholder) |
-| Arm 3 (Calibration) | K-NN on n=5 IHC reference, per-cell-type linear cal, leave-one-IHC-out validation | **mean LOO MAE 0.210 vs intercept-only baseline 0.466 — calibration adds 55% MAE reduction over "predict cohort mean"** |
+| Arm 3 (Calibration) | K-NN on n=5 IHC reference, per-cell-type linear cal, leave-one-IHC-out validation | **mean LOO MAE 0.210 vs intercept-only baseline 0.466, calibration adds 55% MAE reduction over "predict cohort mean"** |
 
 The Arm 3 headline is the most defensible single number this repo
 produces: it shows that nearest-neighbor cross-cohort calibration is
@@ -71,7 +71,7 @@ but the *pattern* is already visible.
 
 ### What the 55% number means and does not mean
 
-It *means*: the K-NN-anchored linear calibration is doing real work — it
+It *means*: the K-NN-anchored linear calibration is doing real work, it
 beats "predict the IHC cohort mean for every patient" by half its error.
 
 It *does not mean*: the calibration is research-grade. n=5 IHC is one
@@ -84,8 +84,8 @@ demo on real public data**, not because it is a finding.
 The full P4 plan estimates ~3 weeks part-time. Compressing the whole thing
 into one weekend would force synthetic data and short-cut validation, which
 would make the repo a demo rather than a capability portrait. The chosen
-sequence — substrate today, one arm at a time over the week, integration at
-the end — keeps every commit defensible.
+sequence, substrate today, one arm at a time over the week, integration at
+the end, keeps every commit defensible.
 
 ## What the substrate already gives you on day 0
 
@@ -145,7 +145,7 @@ python -c "from hnscc_time import audit; ok, n, bad = audit.verify(); print(ok, 
 # Expect: True <small number> None
 ```
 
-## Honest scope (v0.3)
+## Scope (v0.3)
 
 What this release **does**:
 - Runs end-to-end on 50 real TCGA-HNSC patients (Arm 2 Genomics) and 5
@@ -157,19 +157,19 @@ What this release **does**:
   callable that is the deployment-ready unit of work.
 
 What this release **does not** claim:
-- **Statistical generalisation** — n=5 IHC reference is one order of
+- **Statistical generalisation**, n=5 IHC reference is one order of
   magnitude below what the PMC10571229 full archive would give; the
   calibration is a *demonstration of the integration pattern*, not a
   research finding. The README climax table reports the held-out LOO MAE
-  honestly alongside the intercept-only baseline so a reader can see
+  alongside the intercept-only baseline so a reader can see
   exactly how much signal calibration adds.
-- **True per-marker mIF channels** — the 5 DeepLIIF Sample_Large_Tissues
+- **True per-marker mIF channels**, the 5 DeepLIIF Sample_Large_Tissues
   are RGB composites, not the 4-channel mIF stack the PMC dataset would
   provide. Arm 1 v0.2 uses a documented *heuristic R/G/B -> PanCK/CD8/CD3
   mapping* as a placeholder; Arm 3 calibration replaces it with the
   genomics-anchored signal where the IHC channels would otherwise
   dominate.
-- **Paired patient-level multimodal training** — the 8 PMC patients are
+- **Paired patient-level multimodal training**, the 8 PMC patients are
   not in TCGA-HNSC; we openly use cross-cohort calibration (Approach B)
   instead of pretending to have paired data.
 
@@ -194,14 +194,10 @@ clone-and-run works without any private lab services running.
 
 ## Related portfolio repos
 
-- [scaffold-template](https://github.com/hryankim-architect/bioinformatics-repo-scaffold-template)
-  — the parent substrate this repo inherits from.
-- [multiqc-foundation-gate](https://github.com/hryankim-architect/multiqc-foundation-gate)
-  — P2, sample-QC classifier comparison on MultiQC features.
-- [tp53-aml-hrd-severity](https://github.com/hryankim-architect/tp53-aml-hrd-severity)
-  — P3, clinical-genomics survival modeling on TCGA-LAML.
-- [healthomics-lab-orchestrator](https://github.com/hryankim-architect/healthomics-lab-orchestrator)
-  — P1, Nextflow + audit-bracketed RNA-seq pipeline orchestrator.
+- [scaffold-template](https://github.com/hryankim-architect/bioinformatics-repo-scaffold-template): the parent substrate this repo inherits from.
+- [multiqc-foundation-gate](https://github.com/hryankim-architect/multiqc-foundation-gate): P2, sample-QC classifier comparison on MultiQC features.
+- [tp53-aml-hrd-severity](https://github.com/hryankim-architect/tp53-aml-hrd-severity): P3, clinical-genomics survival modeling on TCGA-LAML.
+- [healthomics-lab-orchestrator](https://github.com/hryankim-architect/healthomics-lab-orchestrator): P1, Nextflow + audit-bracketed RNA-seq pipeline orchestrator.
 
 ## License
 
