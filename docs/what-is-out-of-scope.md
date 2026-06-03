@@ -120,9 +120,9 @@ minimum needed for cross-cohort calibration.
 
 ## Production hardening (HA, RBAC, multi-tenant, model registry)
 
-The pipeline runs in a single Python process. There is no HA, no RBAC,
-no per-tenant isolation, no streaming, no retry/backoff, no model
-registry beyond MLflow artifacts.
+The whole pipeline is one Python process. No high availability, no access
+control, no per-tenant isolation, no streaming, no retry/backoff, and no
+model registry beyond MLflow artifacts.
 
 **Why out of scope**: production hardening belongs to P1 (the
 orchestration repo) and to a separate deployment project, not to
@@ -130,13 +130,12 @@ the analytical-method work here.
 
 ---
 
-## Adding an item
+## Proposing a scope change
 
-Open a PR that:
+Open a PR. In the PR description, name the item and state why the
+earlier reasoning no longer holds. If the argument is sound, update
+this file in the same PR before merge. If the argument doesn't hold,
+the PR does not land.
 
-1. Adds the item to the appropriate section above (or creates a new
-   section if none fits).
-2. Adds a one-sentence reason in italics for why it remains out of scope.
-3. Links to the upstream feature request or issue if there is one.
-
-That's it. The friction is intentional.
+The bar is deliberate. A small, finished pipeline is worth more to this
+repo than a large, perpetually-in-progress one.
