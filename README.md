@@ -1,6 +1,6 @@
 # hnscc-time-multimodal
 
-![ci](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/english-only.yml/badge.svg)
+![ci](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/ci.yml/badge.svg)
 
 > **Engineering demo on real public data.** This repo builds a multimodal
 > Tumor Immune Microenvironment (TIME) prediction pipeline on the same lab
@@ -97,8 +97,8 @@ Even with no analysis code yet, this repo:
   chain end-to-end and flag tampering.
 - Degrades cleanly to no-op when MLflow / `AUDIT_HOST` are unset, so the
   scaffold passes CI on a vanilla GitHub Actions runner.
-- Enforces an English-only public surface via the `english-only` workflow
-  (CJK character scanner in `scripts/check_english_only.py`).
+- Enforces an English-only public surface via a local pre-commit hook
+  (CJK scanner in `scripts/check_english_only.py`).
 
 Running `make test` against the v0.0 commit exercises this surface end-to-
 end before any P4-specific work lands.
