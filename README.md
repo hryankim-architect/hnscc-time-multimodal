@@ -2,12 +2,12 @@
 
 ![ci](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/english-only.yml/badge.svg)
 
-> **Capability portrait, not a research result.** This repo demonstrates how
-> a multimodal Tumor Immune Microenvironment (TIME) prediction pipeline can
-> be staged on the same lab substrate that powers `multiqc-foundation-gate`
-> and `tp53-aml-hrd-severity`, IHC + bulk RNA-seq deconvolution + cross-
-> cohort calibration, every step bracketed by a hash-chained audit ledger.
-> The clinical/biological claim space is intentionally narrow at v0; the
+> **Engineering demo on real public data.** This repo builds a multimodal
+> Tumor Immune Microenvironment (TIME) prediction pipeline on the same lab
+> substrate as `multiqc-foundation-gate` and `tp53-aml-hrd-severity`:
+> IHC + bulk RNA-seq deconvolution + cross-cohort calibration, each step
+> bracketed by a hash-chained audit ledger written to NDJSON. The
+> clinical/biological claim space is intentionally narrow at v0; the
 > substrate and the integration pattern are the deliverable.
 
 ## What this answers
@@ -76,16 +76,15 @@ beats "predict the IHC cohort mean for every patient" by half its error.
 
 It *does not mean*: the calibration is research-grade. n=5 IHC is one
 order of magnitude below what's needed for any peer-reviewable claim.
-The number lives in this README because it is **a working capability
-demo on real public data**, not because it is a finding.
+The number lives in this README because it is **a working demo on real
+public data**, not because it is a finding.
 
 ## Why this scoping
 
 The full P4 plan estimates ~3 weeks part-time. Compressing the whole thing
-into one weekend would force synthetic data and short-cut validation, which
-would make the repo a demo rather than a capability portrait. The chosen
-sequence, substrate today, one arm at a time over the week, integration at
-the end, keeps every commit defensible.
+into one weekend would force synthetic data and short-cut validation. The
+chosen sequence — substrate today, one arm at a time over the week,
+integration at the end — keeps every commit defensible.
 
 ## What the substrate already gives you on day 0
 
@@ -93,8 +92,9 @@ Even with no analysis code yet, this repo:
 
 - Boots a single Python process via `scripts/run_lab.sh` that brackets
   every operation with `pipeline_start` / `pipeline_end` audit emissions.
-- Writes a hash-chained NDJSON ledger (`audit/local-demo.ndjson`) that
-  `audit.verify()` can walk end-to-end to detect tamper.
+- Writes a NDJSON ledger (`audit/local-demo.ndjson`) in which every record
+  carries the SHA-256 of the one before it, so `audit.verify()` can walk the
+  chain end-to-end and flag tampering.
 - Degrades cleanly to no-op when MLflow / `AUDIT_HOST` are unset, so the
   scaffold passes CI on a vanilla GitHub Actions runner.
 - Enforces an English-only public surface via the `english-only` workflow
@@ -145,7 +145,7 @@ python -c "from hnscc_time import audit; ok, n, bad = audit.verify(); print(ok, 
 # Expect: True <small number> None
 ```
 
-## Scope (v0.3)
+## Caveats and scope (v0.3)
 
 What this release **does**:
 - Runs end-to-end on 50 real TCGA-HNSC patients (Arm 2 Genomics) and 5
@@ -180,7 +180,7 @@ for each.
 
 ## Substrate integration
 
-Same four-channel substrate as the other capability-portrait repos:
+Same four-channel substrate as the other repos in this portfolio:
 
 | Channel | Module | Env var |
 |---|---|---|

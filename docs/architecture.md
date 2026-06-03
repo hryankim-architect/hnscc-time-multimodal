@@ -111,7 +111,7 @@ the spatial pattern from the nearest IHC neighbour.
 
 ## Substrate integration points
 
-Same four-channel substrate as every other capability-portrait repo:
+Same four-channel substrate as the other portfolio repos:
 
 | Channel | Module | Env var | Substrate endpoint |
 |---|---|---|---|
@@ -178,7 +178,7 @@ sees a complete, self-consistent snapshot of what existed at that point.
 
 - **No DAG engine.** No Nextflow / Airflow / Prefect / Dagster. Three
   arms run in sequence inside one Python process. P1
-  (`healthomics-lab-orchestrator`) is the DAG-engine capability portrait.
+  (`healthomics-lab-orchestrator`) handles DAG-engine orchestration.
 - **No GPU dependency.** PyTorch MPS is opportunistic for Cellpose on
   Apple Silicon; CPU is sufficient for n=8 ROIs and n=50 patients.
 - **No paired multimodal training.** No public dataset has paired

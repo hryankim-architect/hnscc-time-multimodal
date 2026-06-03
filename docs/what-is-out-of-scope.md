@@ -1,13 +1,12 @@
 # What is out of scope (P4, `hnscc-time-multimodal`)
 
-This file is the anti-scope-creep ledger for the P4 capability portrait.
-The repo's value comes from being *small and complete*, every item below
-is something a reviewer might reasonably ask for that the v0.0 -> v0.3
-release plan deliberately does not attempt.
+This file tracks deliberate non-goals for the P4 pipeline. The repo's value
+comes from being small and complete. Each item below is something a reviewer
+might reasonably ask for that the v0.0 -> v0.3 plan does not attempt.
 
-If a future PR proposes any of these, the contributor must answer one
-question: **why is this still out of scope?** If the answer is good, edit
-this file in the same PR. If not, the PR doesn't land.
+If a future PR proposes any of these, the contributor must explain why the
+scope has changed. If the explanation holds, edit this file in the same PR.
+If not, the PR doesn't land.
 
 ---
 
@@ -49,8 +48,7 @@ plausible for HNSCC.
 **Why out of scope**: the PMC dataset does not ship paired clinical
 reports, and free-text TCGA pathology reports are not aligned to the
 PMC patients. Building the report-image correspondence by hand for 8
-patients would be a research project of its own, not a capability
-portrait.
+patients would be a research project of its own, not a pipeline demo.
 
 ---
 
@@ -127,8 +125,8 @@ no per-tenant isolation, no streaming, no retry/backoff, no model
 registry beyond MLflow artifacts.
 
 **Why out of scope**: production hardening belongs to P1 (the
-orchestration capability portrait) and to a separate deployment project,
-not to the analytical-method portrait.
+orchestration repo) and to a separate deployment project, not to
+the analytical-method work here.
 
 ---
 

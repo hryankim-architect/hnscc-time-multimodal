@@ -1,4 +1,4 @@
-"""hnscc_time: capability-portrait scaffold for bioinformatics R&D repos.
+"""hnscc_time: HNSCC TIME multimodal integration scaffold for bioinformatics R&D repos.
 
 Rename this package to your project's name when you create a new repo from
 this template. The substrate hooks in :mod:`hnscc_time.audit`,
