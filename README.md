@@ -2,6 +2,10 @@
 
 ![ci](https://github.com/hryankim-architect/hnscc-time-multimodal/actions/workflows/ci.yml/badge.svg)
 
+> **One principle, applied here.** Pick the smallest, most interpretable representation that could carry the signal; measure it against an honest baseline; report the verdict faithfully — whether the compact choice wins, ties, or loses. *That last step is why AI safety is needed: knowing a capability is real rather than a flattering benchmark.*
+>
+> In this repo: **representation** a shared 4-density TIME schema reconciling IHC + bulk RNA-seq → **baseline** intercept-only (predict-the-mean) → **verdict** compact *wins*: cross-cohort LOO MAE 0.210 vs 0.466 (55% reduction).
+
 > **Engineering demo on real public data.** This repo builds a multimodal
 > Tumor Immune Microenvironment (TIME) prediction pipeline on the same lab
 > substrate as `multiqc-foundation-gate` and `tp53-aml-hrd-severity`:
