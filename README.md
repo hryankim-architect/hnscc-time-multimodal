@@ -145,7 +145,7 @@ python -c "from hnscc_time import audit; ok, n, bad = audit.verify(); print(ok, 
 # Expect: True <small number> None
 ```
 
-## Caveats and scope (v0.3)
+## Limitations (v0.3)
 
 What this release **does**:
 - Runs end-to-end on 50 real TCGA-HNSC patients (Arm 2 Genomics) and 5
