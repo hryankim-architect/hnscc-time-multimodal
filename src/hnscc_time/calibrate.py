@@ -17,7 +17,7 @@ Method (Approach B from `~/Downloads/AI/P4-IHC-Genomics-TIME-Plan.md` §4):
        that applies the calibration and writes the calibrated prediction
        to `out_dir/calibration/calibrated_<id>.json`.
 
-Honest scope (v0.3):
+Caveats and scope (v0.3):
     With n=5 IHC and n=~50 genomics, the calibration is a *demonstration*
     of the integration pattern, not a statistical claim. The README climax
     table reports the held-out validation numbers transparently — the
