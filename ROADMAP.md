@@ -5,8 +5,7 @@ only) into v0.3 (three-arm multimodal pipeline). It is intentionally short
 and dated so anyone clicking the repo can see exactly where the work
 stands.
 
-The full design rationale lives in the private design doc
-`~/Downloads/AI/P4-IHC-Genomics-TIME-Plan.md` (Saturday 2026-05-23, v0.1).
+The full design rationale lives in `docs/architecture.md`.
 This file mirrors only the public-facing engineering plan.
 
 > **Status: shipped.** Milestones v0.0–v0.3 are complete and tagged (`v0.0`,

@@ -4,7 +4,7 @@ Inputs:
     - Genomics TIME profiles (Arm 2 output, ~50 in `time_profiles/tcga_hnsc/`)
     - IHC TIME profiles (Arm 1 output, ~5 in `time_profiles/deepliif_sample/`)
 
-Method (Approach B from `~/Downloads/AI/P4-IHC-Genomics-TIME-Plan.md` §4):
+Method (Approach B, cross-cohort calibration via nearest-neighbor matching; see `docs/architecture.md` §Arm-3):
     1. For each IHC profile, find the K-nearest TCGA-HNSC neighbors on
        subsite metadata (or by overall profile similarity when subsite
        is not informative).
