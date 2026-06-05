@@ -45,7 +45,7 @@ in the per-arm sections below.
 | Layer | v0.0 (Sun AM) | v0.1 (Sun PM, Arm 2) | v0.2 (Sun PM, Arm 1) | v0.3 (Sun PM, Arm 3) |
 |---|---|---|---|---|
 | Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ |
-| Repo skeleton + CI + english-only | ✓ | ✓ | ✓ | ✓ |
+| Repo skeleton + CI | ✓ | ✓ | ✓ | ✓ |
 | **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ |
 | **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ |
 | **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** |
@@ -101,8 +101,6 @@ Even with no analysis code yet, this repo:
   chain end-to-end and flag tampering.
 - Degrades cleanly to no-op when MLflow / `AUDIT_HOST` are unset, so the
   scaffold passes CI on a vanilla GitHub Actions runner.
-- Enforces an English-only public surface via a local pre-commit hook
-  (CJK scanner in `scripts/check_english_only.py`).
 
 Running `make test` against the v0.0 commit exercises this surface end-to-
 end before any P4-specific work lands.
@@ -122,7 +120,6 @@ hnscc-time-multimodal/
 │   └── what-is-out-of-scope.md
 ├── scripts/
 │   ├── run_lab.sh          # substrate-aware entrypoint
-│   ├── check_english_only.py
 │   ├── download_pmc10571229.sh    # (v0.0 step D) IHC dataset fetcher
 │   └── download_tcga_hnsc.sh      # (v0.0 step D) RNA-seq subset fetcher
 ├── tests/                  # scaffold smoke tests; per-arm tests land with each arm

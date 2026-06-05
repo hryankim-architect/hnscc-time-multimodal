@@ -162,8 +162,7 @@ what existed at that point.
 ## CI checks
 
 The CI suite runs: ruff (lint + format), pytest (unit tests with synthetic
-fixtures), the canary probe (synthetic pipeline run), and an English-only /
-CJK character scan to keep the codebase in one language.
+fixtures), and the canary probe (synthetic pipeline run).
 
 ---
 

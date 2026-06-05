@@ -28,7 +28,7 @@ downloading in the background so Tuesday's work can start instantly.
 - [x] P4-specific README, `docs/architecture.md`, `docs/what-is-out-of-scope.md`
 - [x] `ROADMAP.md` (this file)
 - [x] Push to GitHub (`hryankim-architect/hnscc-time-multimodal`)
-- [x] Scaffold-level CI green (`ci` + `english-only`)
+- [x] Scaffold-level CI green (`ci`)
 - [x] Kick off background downloads:
   - PMC10571229 IHC dataset (~5 GB, via `scripts/download_pmc10571229.sh`)
   - TCGA-HNSC RNA-seq subset, n=50 (~2 GB, via `scripts/download_tcga_hnsc.sh`)
