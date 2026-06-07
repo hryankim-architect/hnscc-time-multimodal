@@ -42,13 +42,14 @@ the entire 3-arm pipeline landed in a single Sunday-evening session after
 v0.0 shipped. The trade-offs that made this possible are documented openly
 in the per-arm sections below.
 
-| Layer | v0.0 (Sun AM) | v0.1 (Sun PM, Arm 2) | v0.2 (Sun PM, Arm 1) | v0.3 (Sun PM, Arm 3) |
-|---|---|---|---|---|
-| Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ |
-| Repo skeleton + CI | ✓ | ✓ | ✓ | ✓ |
-| **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ |
-| **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ |
-| **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** |
+| Layer | v0.0 | v0.1 (Arm 2) | v0.2 (Arm 1) | v0.3 (Arm 3) | v0.4 (Arm 4) |
+|---|---|---|---|---|---|
+| Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Repo skeleton + CI | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ | ✓ |
+| **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ | ✓ |
+| **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** | ✓ |
+| **Arm 4, HPV± overall-survival stratification** | — | — | — | — | **✓ KM + log-rank + Cox HR on n=110 HPV-tested TCGA-HNSC** |
 
 See `ROADMAP.md` for what the released contract looks like at each tag,
 and `docs/what-is-out-of-scope.md` for what each arm intentionally does
@@ -65,6 +66,7 @@ the *comparison*, not any single arm's number:
 | Arm 2 (Genomics) | 50 TCGA-HNSC patients, TPM -> rank-transform -> mean-rank of immune signatures, z-score normalised | TIL score mean **0.637 ± 0.164** across cohort; 47 inflamed / 1 excluded / 2 desert / 0 unknown |
 | Arm 1 (IHC) | 5 DeepLIIF Sample_Large_Tissues ROIs (RGB tissue), Cellpose 4.x CPU segmentation | **6,725 nuclei segmented**; 5 inflamed / 0 excluded / 0 desert (RGB heuristic R/G/B->marker placeholder) |
 | Arm 3 (Calibration) | K-NN on n=5 IHC reference, per-cell-type linear cal, leave-one-IHC-out validation | **mean LOO MAE 0.210 vs intercept-only baseline 0.466, calibration adds 55% MAE reduction over "predict cohort mean"** |
+| Arm 4 (HPV± survival) | n=110 HPV-tested TCGA-HNSC (42 HPV+, 68 HPV-), overall survival, KM + log-rank + univariate Cox | **Cox HR 0.48 (95% CI 0.21–1.10) for HPV+**, i.e. the expected protective direction — **trend-level, not significant** (log-rank p=0.076) in this mixed-subsite subset. Reported as-is: HPV's prognostic effect concentrates in the oropharynx, and the HPV-tested subset is not enriched for it. |
 
 The Arm 3 headline is the most defensible single number this repo
 produces: it shows that nearest-neighbor cross-cohort calibration is

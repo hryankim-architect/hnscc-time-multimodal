@@ -20,9 +20,12 @@ This file mirrors only the public-facing engineering plan.
 > path).
 
 > **Status: shipped.** Milestones v0.0–v0.3 are complete and tagged (`v0.0`,
-> `v0.3`); the three arms run end to end and the as-built result tables are in
-> the README. The checklist below is kept as the original sprint plan. One
-> deviation from it: the IHC arm (v0.2) shipped on 5 DeepLIIF
+> `v0.3`); **v0.4 adds Arm 4 (HPV± overall-survival stratification)** — KM +
+> log-rank + Cox on n=110 HPV-tested TCGA-HNSC, reported at trend level
+> (HR 0.48, log-rank p=0.076) with its power limits stated (see
+> `docs/release-notes/v0.4.md`). The arms run end to end and the as-built result
+> tables are in the README. The checklist below is kept as the original sprint
+> plan. One deviation from it: the IHC arm (v0.2) shipped on 5 DeepLIIF
 > Sample_Large_Tissues ROIs rather than the originally scoped PMC10571229 set;
 > the README carries the as-built numbers (6,725 nuclei segmented; cross-cohort
 > LOO MAE 0.210 vs 0.466 intercept-only).

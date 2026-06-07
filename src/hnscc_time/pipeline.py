@@ -120,6 +120,88 @@ def fetch_clinical(clinical: dict[str, Any], case_ids: list[str], out_dir: Path)
     return {"path": str(dest), "status": status, "sha256": actual}
 
 
+def _hpv_status(case: dict[str, Any]) -> str:
+    """Map a case's molecular HPV test(s) to positive / negative / unknown."""
+    results: set[str] = set()
+    for fu in case.get("follow_ups") or []:
+        for mt in fu.get("molecular_tests") or []:
+            if str(mt.get("laboratory_test", "")).lower() == "human papillomavirus":
+                r = str(mt.get("test_result", "")).lower()
+                if r in ("positive", "amplified"):
+                    results.add("positive")
+                elif r in ("negative", "not amplified"):
+                    results.add("negative")
+    if "positive" in results:
+        return "positive"
+    if "negative" in results:
+        return "negative"
+    return "unknown"
+
+
+def _case_survival(case: dict[str, Any]) -> tuple[float, int] | tuple[None, None]:
+    dem = case.get("demographic") or {}
+    dx = (case.get("diagnoses") or [{}])[0]
+    vs = dem.get("vital_status")
+    if vs == "Dead" and dem.get("days_to_death") is not None:
+        return float(dem["days_to_death"]), 1
+    if vs == "Alive" and dx.get("days_to_last_follow_up") is not None:
+        return float(dx["days_to_last_follow_up"]), 0
+    return None, None
+
+
+def fetch_hpv(hpv: dict[str, Any], out_dir: Path) -> dict[str, Any]:
+    """Fetch + canonicalize + verify the HPV-status + survival table (Arm 4).
+
+    Queries GDC for the project's molecular HPV tests, joins overall survival,
+    keeps cases with a known HPV result + usable survival, and writes a tidy TSV
+    (rows sorted by submitter_id) so the on-disk sha256 matches the pinned value.
+    """
+    rel = hpv["path"]
+    dest = out_dir / rel
+    expected = hpv.get("sha256")
+    if dest.exists() and expected and _checksum(dest) == expected:
+        return {"path": str(dest), "status": "cached"}
+
+    payload = {
+        "filters": {
+            "op": "and",
+            "content": [
+                {"op": "in", "content": {"field": "cases.project.project_id",
+                                         "value": [hpv["project"]]}},
+                {"op": "in", "content": {"field": "follow_ups.molecular_tests.laboratory_test",
+                                         "value": [hpv["laboratory_test"]]}},
+            ],
+        },
+        "size": "600",
+        "expand": "follow_ups.molecular_tests,demographic,diagnoses",
+        "fields": "submitter_id",
+    }
+    req = urllib.request.Request(
+        hpv["endpoint"],
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        hits = json.loads(resp.read())["data"]["hits"]
+
+    rows: list[tuple[str, str, str, str]] = []
+    for case in hits:
+        status = _hpv_status(case)
+        t, e = _case_survival(case)
+        if status in ("positive", "negative") and t is not None:
+            rows.append((case["submitter_id"], status, f"{t:.1f}", str(e)))
+    rows.sort()
+    body = "submitter_id\thpv_status\tos_days\tos_event\n" + "".join(
+        "\t".join(r) + "\n" for r in rows
+    )
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(body, encoding="utf-8")
+    actual = _checksum(dest)
+    status = "downloaded" if (not expected or actual == expected) else "checksum_mismatch"
+    return {"path": str(dest), "status": status, "sha256": actual, "n_cases": len(rows)}
+
+
 def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
     """Fetch every public input and reproduce the layout ``make run`` reads.
 
@@ -165,6 +247,10 @@ def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
     if clinical:
         case_ids = [case for _, case, _ in rows]
         out["clinical"] = fetch_clinical(clinical, case_ids, out_dir)
+
+    hpv = manifest.get("hpv")
+    if hpv:
+        out["hpv"] = fetch_hpv(hpv, out_dir)
 
     return out
 
@@ -313,6 +399,44 @@ def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> 
             )
             arm_summaries["arm3_calibration"] = {"failed": f"{type(exc).__name__}: {exc}"}
         metrics["arm3_elapsed_ms"] = (time.time() - arm3_t0) * 1000.0
+
+        # ---- Arm 4 (HPV± overall survival) ---------------------------
+        # Clinical-survival stratifier; independent of the genomics/IHC arms.
+        # Skips gracefully if hpv_status.tsv was not fetched.
+        arm4_t0 = time.time()
+        try:
+            from hnscc_time import hpv as hpv_mod
+
+            arm4 = hpv_mod.run_hpv_arm(data_dir, out_dir / "hpv")
+            audit.emit(
+                action="hpv.survival.computed",
+                job_id=job_id,
+                fields={
+                    k: arm4[k]
+                    for k in ("n_hpv_positive", "n_hpv_negative", "cox_hr_hpv_pos_vs_neg",
+                              "logrank_p", "direction_protective", "significant_p05")
+                    if k in arm4
+                },
+            )
+            for k, v in arm4.items():
+                if isinstance(v, int | float | bool):
+                    metrics[f"arm4_{k}"] = float(v)
+            arm_summaries["arm4_hpv_survival"] = arm4
+        except FileNotFoundError as exc:
+            audit.emit(
+                action="arm4_skipped_missing_data",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm4_hpv_survival"] = {"skipped": str(exc)}
+        except Exception as exc:  # noqa: BLE001 — intentional arm isolation
+            audit.emit(
+                action="arm4_failed",
+                job_id=job_id,
+                fields={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            arm_summaries["arm4_hpv_survival"] = {"failed": f"{type(exc).__name__}: {exc}"}
+        metrics["arm4_elapsed_ms"] = (time.time() - arm4_t0) * 1000.0
 
         metrics["pipeline_elapsed_ms"] = (time.time() - t_pipeline) * 1000.0
         tracking.log_metrics(metrics)

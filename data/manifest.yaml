@@ -45,6 +45,22 @@ clinical:
   license: NIH GDC Data Use Agreement (open tier)
   source: "Clinical metadata (gender, race, vital status, diagnosis, subsite, survival, smoking) for the n=50 TCGA-HNSC cases in the genomics subset."
 
+# ----- HPV± overall survival (Arm 4; GDC molecular tests) ---------------------
+# Independent of the n=50 genomics subset: this covers every TCGA-HNSC case with
+# a molecular HPV test result + usable overall survival (n=110). Fetched into
+# tcga_hnsc/hpv_status.tsv (submitter_id, hpv_status, os_days, os_event), sorted,
+# sha256-pinned.
+hpv:
+  endpoint: https://api.gdc.cancer.gov/cases
+  project: TCGA-HNSC
+  laboratory_test: human papillomavirus
+  path: tcga_hnsc/hpv_status.tsv
+  sha256: 76485138ae2fac5df57fff5e712d090a3153b0de3e532a072ea6a4d20736141f
+  n_cases: 110
+  mapping: "test_result Positive/Amplified -> positive; Negative/Not Amplified -> negative; known HPV + usable OS only"
+  license: NIH GDC Data Use Agreement (open tier)
+  source: "TCGA-HNSC molecular HPV test (follow_ups.molecular_tests) joined to overall survival; n=110 (42 HPV+, 68 HPV-)."
+
 # ----- IHC ground truth (TCIA, RESOLVED + CHECKSUMMED 2026-06-07) --------------
 # Earlier notes guessed a Zenodo record; the canonical home is The Cancer Imaging
 # Archive. The TCIA web download is faspex/Aspera, but every ROI image is also

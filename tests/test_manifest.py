@@ -89,6 +89,18 @@ class TestIhcBlock:
             seen.add(rel)
 
 
+class TestHpvBlock:
+    def test_pinned(self):
+        m = _load()
+        assert "hpv" in m, "manifest missing the Arm-4 hpv block"
+        h = m["hpv"]
+        assert h["endpoint"] == "https://api.gdc.cancer.gov/cases"
+        assert h["project"] == "TCGA-HNSC"
+        assert h["path"] == "tcga_hnsc/hpv_status.tsv"
+        assert HEX64.match(h["sha256"]), "hpv sha256 must be a real 64-hex digest"
+        assert int(h["n_cases"]) > 0
+
+
 class TestGenomicsInputs:
     def test_fifty_real_open_tier_entries(self):
         inputs = _load()["inputs"]
