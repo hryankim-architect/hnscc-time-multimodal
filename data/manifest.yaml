@@ -1,58 +1,368 @@
-# Public-data manifest for the P4 HNSCC-TIME multimodal pipeline.
+# Public-data manifest -- P4 HNSCC-TIME multimodal pipeline.
 #
-# Two cohorts:
-#   - PMC10571229 (Ghahremani et al. 2023, MICCAI)
-#       8 HNSCC patients, multiplex IHC + mIF, 72 ROIs.
-#       Released by the Nadeem lab (MSKCC) under research-use terms;
-#       declared not human-subjects research.
-#   - TCGA-HNSC subset (n=50, stratified by HPV status + subsite)
-#       Bulk RNA-seq + clinical metadata.
-#       Open-tier under the NIH GDC Data Use Agreement.
+# This file is the committed CHECKSUM LEDGER for the demo's public inputs. Every
+# genomics input below is NIH GDC open tier (no controlled-access auth) and is
+# pinned by sha256 so a fetch can be byte-verified.
 #
-# v0.0 ships placeholder entries — actual checksums populate as the
-# scripts/download_*.sh scripts finish on chi-mac-p tonight. v0.1
-# replaces the placeholders with verified sha256 sums.
+# Two arms:
+#   - genomics (TCGA-HNSC): 50 RNA-Seq STAR-Counts (plain TSV) + a clinical
+#     /cases query, for a DETERMINISTIC n=50 subset (all open STAR-Counts file_ids
+#     sorted, then seed=42 shuffle, then first 50; see scripts/download_tcga_hnsc.sh).
+#   - IHC (TCIA): the HNSCC-mIF-mIHC-comparison collection (8 patients). Resolved
+#     below; image checksums are not pinned here (multi-GB, Aspera-only) -- see ihc:.
 #
-# Adding an input requires editing this file AND the README's claim.
-# That friction is intentional (see docs/what-is-out-of-scope.md).
+# NOTE on `make data`: the genomics arm is prepared by scripts/download_tcga_hnsc.sh,
+# which writes data/tcga_hnsc/_subset_manifest.tsv + star_counts/<case>__<file>.tsv +
+# clinical.tsv (the layout cohort.load_cohort reads). `pipeline fetch` downloads the
+# STAR `inputs` below by URL to the same paths and verifies sha256, but does not yet
+# build the subset index or fetch the clinical block -- wiring fetch end-to-end is a
+# tracked follow-up (see ROADMAP). Until then this manifest's role is the verifiable
+# ledger, and the download script is the data path.
+#
+# Adding an input requires editing this file AND the README's claim. That friction
+# is intentional (see docs/what-is-out-of-scope.md).
 
+# ----- clinical (GDC /cases POST; canonical TSV = header + sorted rows) --------
+clinical:
+  endpoint: https://api.gdc.cancer.gov/cases
+  method: POST
+  project: TCGA-HNSC
+  subset: "the n=50 cases of the pinned STAR inputs below (filter: submitter_id in <those cases>)"
+  format: "TSV, canonicalized as header + rows sorted lexicographically (byte-stable)"
+  fields:
+    - submitter_id
+    - demographic.gender
+    - demographic.race
+    - demographic.year_of_birth
+    - demographic.vital_status
+    - diagnoses.primary_diagnosis
+    - diagnoses.tissue_or_organ_of_origin
+    - diagnoses.days_to_last_follow_up
+    - diagnoses.days_to_death
+    - exposures.tobacco_smoking_status
+  path: tcga_hnsc/clinical.tsv
+  sha256: cebcec759f1696dc2204de7e1c39dccd6ee92c248fc59692509c032741ebcfa3
+  license: NIH GDC Data Use Agreement (open tier)
+  source: "Clinical metadata (gender, race, vital status, diagnosis, subsite, survival, smoking) for the n=50 TCGA-HNSC cases in the genomics subset."
+
+# ----- IHC ground truth (TCIA, RESOLVED 2026-06-07) ---------------------------
+# Earlier notes guessed a Zenodo record; the canonical home is The Cancer Imaging
+# Archive. Images are distributed via TCIA faspex/Aspera (not a plain URL), so
+# per-file sha256 are not pinned here; the source + DOI below are authoritative.
+ihc:
+  collection: HNSCC-mIF-mIHC-comparison (TCIA, Version 2, 2023-08-31)
+  doi: 10.7937/TCIA.2020.T90F-WB82
+  url: https://www.cancerimagingarchive.net/collection/hnscc-mif-mihc-comparison/
+  patients: 8
+  size_gb: 1.01
+  images: 3216
+  format: PNG
+  license: CC-BY-4.0
+  download: "TCIA faspex/Aspera (IBM Aspera Connect); see scripts/download_pmc10571229.sh"
+  checksums: "pending -- multi-GB image set via Aspera, not pinned in this ledger"
+  source: "Ghahremani et al. 2023, MICCAI (PMC10571229). 8 HNSCC patients; 9 ROIs/slide (3 tumor-core T, 3 margin M, 3 stroma S), each subdivided into 512x512 patches; file notation Case[id]_[T/M/S][1-3]_[ROI_index]_[marker]."
+
+# ----- genomics inputs: TCGA-HNSC RNA-Seq STAR-Counts (n=50) -----------------
+# Total 211,553,423 bytes (~212 MB). Files are plain TSV (GDC does NOT gzip
+# STAR counts). Path matches the download script's <case>__<file_name> layout.
 inputs:
-  # ----- PMC10571229 (IHC ground truth, 8 HNSCC patients) ----------------
-  - url: https://github.com/nadeemlab/DeepLIIF
-    path: pmc10571229/source-repo/
-    sha256: TBD-v0.0-download
-    size_mb: 50
-    license: research-use, anonymized samples (declared not human-subjects research)
-    source: "Ghahremani et al. 2023, MICCAI (PMC10571229). 8 HNSCC patients from Moffitt Cancer Center; markers DAPI/CD3/CD8/FoxP3/PanCK. Download via scripts/download_pmc10571229.sh."
-
-  # NOTE (v0.0 download log 2026-05-24): Zenodo record 8367318 was the wrong
-  # ID and yielded only a 7-KB stray Python script. The DeepLIIF source repo
-  # (cloned successfully above) points at Zenodo 4751737 as the general DeepLIIF
-  # training data; the PMC10571229-specific HNSCC ROI archive likely lives at
-  # a separate URL (candidate: NIH BioStudies or direct Nadeem-lab mirror).
-  # Tuesday-morning Arm-2 prep verifies; Thursday v0.2 (Arm 1) ingests for real.
-  - url: TBD-resolved-in-v0.2  # PMC10571229 HNSCC ROI archive
-    path: pmc10571229/rois/
-    sha256: TBD-v0.0-download
-    size_mb: 5000
-    license: CC-BY-4.0 (Zenodo deposit)
-    source: "72 multiplex IHC ROIs (1356x1012 px at 0.5 um/pixel), pre-extracted 256x256 patches (1072 total) and 512x512 patches (268 total)."
-
-  # ----- TCGA-HNSC subset (RNA-seq for genomics arm) ---------------------
-  - url: https://api.gdc.cancer.gov/data/  # populated per-patient by download script
-    path: tcga_hnsc/star_counts/
-    sha256: TBD-v0.0-download
-    size_mb: 2000
+  - url: https://api.gdc.cancer.gov/data/0508b025-15b5-4012-b1b1-530d329eeec9
+    path: tcga_hnsc/star_counts/TCGA-CR-7401__8598c338-e04c-4a8a-92da-1ef545a6ca45.rna_seq.augmented_star_gene_counts.tsv
+    sha256: ac5d89084550269e0985f98c914daa3e506b1a0534220b3598bcae2e76259764
+    size_bytes: 4225380
     license: NIH GDC Data Use Agreement (open tier)
-    source: "TCGA-HNSC cohort subset (n=50), stratified by HPV status + anatomic subsite. STAR-aligned gene counts via GDC API. Fetched by scripts/download_tcga_hnsc.sh."
-
-  - url: https://api.gdc.cancer.gov/files  # clinical metadata endpoint
-    path: tcga_hnsc/clinical.tsv
-    sha256: TBD-v0.0-download
-    size_mb: 1
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-7401; GDC file 0508b025-15b5-4012-b1b1-530d329eeec9 (8598c338-e04c-4a8a-92da-1ef545a6ca45.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/07f3248f-4c22-441e-8b7e-18a77064d984
+    path: tcga_hnsc/star_counts/TCGA-CQ-A4CB__0a669eee-5610-4b4d-af54-7fc85a0bab8f.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 2d53e6066fca084be89de1d2f00cd7c82e6be3d355668303399981352f1d19a3
+    size_bytes: 4230839
     license: NIH GDC Data Use Agreement (open tier)
-    source: "Clinical metadata for the n=50 subset (age, sex, HPV status, subsite, overall survival, vital status)."
-
-# After scripts/download_*.sh finishes (background), the v0.1 commit
-# replaces every TBD-v0.0-download with the actual sha256, and the
-# size_mb fields update to observed values.
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CQ-A4CB; GDC file 07f3248f-4c22-441e-8b7e-18a77064d984 (0a669eee-5610-4b4d-af54-7fc85a0bab8f.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/199b6329-f615-4a35-b19e-f398532c8ccd
+    path: tcga_hnsc/star_counts/TCGA-CN-5363__a604ff34-8b5c-4ab9-8634-948a39cacb46.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 999195b5bfe193e0c7593bb4c0f32f27c27a807515fa962a3613021bdd565c1a
+    size_bytes: 4222753
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-5363; GDC file 199b6329-f615-4a35-b19e-f398532c8ccd (a604ff34-8b5c-4ab9-8634-948a39cacb46.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/1f40b3db-3351-4dbc-8560-5c5b6a0e0def
+    path: tcga_hnsc/star_counts/TCGA-CQ-A4C6__a057783d-e497-4985-bcc7-0ae48388c883.rna_seq.augmented_star_gene_counts.tsv
+    sha256: b4060211ee25505e992c95ae5a0c70370646ff65f9bf0e126cb25fe0b91869dd
+    size_bytes: 4230180
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CQ-A4C6; GDC file 1f40b3db-3351-4dbc-8560-5c5b6a0e0def (a057783d-e497-4985-bcc7-0ae48388c883.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/1f715b37-49a7-4b68-8787-10c28dc71039
+    path: tcga_hnsc/star_counts/TCGA-CR-6491__fb07c4dc-76f8-4772-a9e0-f29afa67707e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: e8dfabba03322c1088d2f887ffac99ba025a4987956d76e29cb7f59c04abc119
+    size_bytes: 4224075
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-6491; GDC file 1f715b37-49a7-4b68-8787-10c28dc71039 (fb07c4dc-76f8-4772-a9e0-f29afa67707e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/2355631d-aa47-43c0-929a-a47e669c365a
+    path: tcga_hnsc/star_counts/TCGA-QK-A8ZB__8852b207-8d76-47de-afb2-ea8128d09f34.rna_seq.augmented_star_gene_counts.tsv
+    sha256: f029123ae19cc24e1ed6659a5b401b2497886faa679a9c1b9958384becb7f0df
+    size_bytes: 4247762
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-QK-A8ZB; GDC file 2355631d-aa47-43c0-929a-a47e669c365a (8852b207-8d76-47de-afb2-ea8128d09f34.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/23a30a82-7b8d-4ace-94c0-1844651bf5c2
+    path: tcga_hnsc/star_counts/TCGA-BA-5555__a3834287-f9b6-4856-b94e-8cf83dff9f28.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 5237594da2db546af15a0037a324b9346b5c272b3a638547ce0f7b25f3cca169
+    size_bytes: 4240425
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-BA-5555; GDC file 23a30a82-7b8d-4ace-94c0-1844651bf5c2 (a3834287-f9b6-4856-b94e-8cf83dff9f28.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/340f6bf2-e251-4e6e-beb0-0d835e292df4
+    path: tcga_hnsc/star_counts/TCGA-D6-A6EN__934910be-b029-4990-86be-d73e637c19fa.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 16f746ffeb0b0fbc5d387d55bc2971b9eb755e83a30856f7d0e9a16890309680
+    size_bytes: 4214491
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-D6-A6EN; GDC file 340f6bf2-e251-4e6e-beb0-0d835e292df4 (934910be-b029-4990-86be-d73e637c19fa.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/34738236-8107-4968-a889-5a3628d82ebc
+    path: tcga_hnsc/star_counts/TCGA-CQ-7068__be0e8bb7-c5ef-4f5a-9112-095350caab7e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: b1cd6a6f9bdd8896430e55a034af4d3de84d8df119cd63583f1b007dbeac4853
+    size_bytes: 4238385
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CQ-7068; GDC file 34738236-8107-4968-a889-5a3628d82ebc (be0e8bb7-c5ef-4f5a-9112-095350caab7e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/3706e408-1107-49d5-a526-5746c0e581ae
+    path: tcga_hnsc/star_counts/TCGA-P3-A5Q6__6693042e-6ee0-4f1b-9167-aa29701e679e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 5ce764fd86f9594432b77263bbb3ca5b18d78f699d7344e1de66763e8b5f6e52
+    size_bytes: 4225031
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-P3-A5Q6; GDC file 3706e408-1107-49d5-a526-5746c0e581ae (6693042e-6ee0-4f1b-9167-aa29701e679e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/3e1c0989-8575-4d69-88b4-623292093043
+    path: tcga_hnsc/star_counts/TCGA-CV-A45T__9d2e1bb0-f115-4a6a-b856-1c8f165a5be5.rna_seq.augmented_star_gene_counts.tsv
+    sha256: b65e5c5ec7b64fe2a9f5a463356b1905fbbea58f8dbac12f7ce696c92330ca2d
+    size_bytes: 4231652
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-A45T; GDC file 3e1c0989-8575-4d69-88b4-623292093043 (9d2e1bb0-f115-4a6a-b856-1c8f165a5be5.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/3f6cc2ce-245d-4eed-831c-ad4165376e69
+    path: tcga_hnsc/star_counts/TCGA-CR-6493__a903b2e0-a595-45e4-9532-58d0ad4d55da.rna_seq.augmented_star_gene_counts.tsv
+    sha256: d5335f0906a528c7d709e2a57b266fa2e2643fe5332ef244ed6acf8526ae2b12
+    size_bytes: 4226223
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-6493; GDC file 3f6cc2ce-245d-4eed-831c-ad4165376e69 (a903b2e0-a595-45e4-9532-58d0ad4d55da.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/489bb150-5eb7-46af-9c6e-9881016b6ba7
+    path: tcga_hnsc/star_counts/TCGA-UF-A71A__8c44dbc3-a9fa-40cf-b17a-6d77393cf29f.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 787c99ed7699b2cc76b4186677f22649acbd6d21583855edfd101160835872d8
+    size_bytes: 4229996
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-UF-A71A; GDC file 489bb150-5eb7-46af-9c6e-9881016b6ba7 (8c44dbc3-a9fa-40cf-b17a-6d77393cf29f.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/4b33a2f5-280a-40d1-be86-4075ac09aaf8
+    path: tcga_hnsc/star_counts/TCGA-CN-6019__031d95f4-3689-41ee-adf7-097695d50ba5.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 94beca635ca877617d816f862f7ad8de369d01bb184ad207f8adf7f64137693a
+    size_bytes: 4231963
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-6019; GDC file 4b33a2f5-280a-40d1-be86-4075ac09aaf8 (031d95f4-3689-41ee-adf7-097695d50ba5.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/4c1a19bb-cfee-4556-9445-adfccd73c738
+    path: tcga_hnsc/star_counts/TCGA-BA-7269__edffdfac-f4ac-47d6-96f8-cb56b8745dac.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 34afe0a864c109eb83116db2bcc5bc5c2c34eb7627209388f2d8d09d413edbbc
+    size_bytes: 4226648
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-BA-7269; GDC file 4c1a19bb-cfee-4556-9445-adfccd73c738 (edffdfac-f4ac-47d6-96f8-cb56b8745dac.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/4d2c5caa-ba0e-49ed-8c9f-2df4c857f4dc
+    path: tcga_hnsc/star_counts/TCGA-CR-6477__b8c39c47-e4ad-4ef1-b4d8-bf5825292890.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 5dc9325f0dc5506a328bfeea611bf6b294fa56597c3181aa5c515e2bb27119a7
+    size_bytes: 4233682
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-6477; GDC file 4d2c5caa-ba0e-49ed-8c9f-2df4c857f4dc (b8c39c47-e4ad-4ef1-b4d8-bf5825292890.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/4eda7674-c779-437a-9a7d-63952954d0ac
+    path: tcga_hnsc/star_counts/TCGA-CV-6948__c5657390-ce41-4859-beae-2e1e0017d8f6.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 628246ad2678e635e19d9bb59f47390d7e28b85b8f809b727b7dc1626ce7b9c4
+    size_bytes: 4255505
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-6948; GDC file 4eda7674-c779-437a-9a7d-63952954d0ac (c5657390-ce41-4859-beae-2e1e0017d8f6.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/53401597-522a-4be6-8f22-9ef858a691ae
+    path: tcga_hnsc/star_counts/TCGA-CR-6481__cd9aea43-7ec6-4d41-a2ec-cb25c9931949.rna_seq.augmented_star_gene_counts.tsv
+    sha256: b69d10f06d734b56f7898c0cc1fc7277baa13c02bb3f8b23f94057df7595cda5
+    size_bytes: 4240719
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-6481; GDC file 53401597-522a-4be6-8f22-9ef858a691ae (cd9aea43-7ec6-4d41-a2ec-cb25c9931949.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/5475ae6f-f1d4-415e-80e4-66f2ddf4231f
+    path: tcga_hnsc/star_counts/TCGA-IQ-A61G__07c85a62-e81a-4eb8-b758-79113ad15012.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 7df2b36a17ec846587e9cc048f9781a9e04fd33c5cbfe3768f866456ac9c817d
+    size_bytes: 4225744
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-IQ-A61G; GDC file 5475ae6f-f1d4-415e-80e4-66f2ddf4231f (07c85a62-e81a-4eb8-b758-79113ad15012.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/55ffd417-0e61-4fe5-9ba4-54ae15c8330a
+    path: tcga_hnsc/star_counts/TCGA-CQ-6229__18075aee-7064-4b22-b976-21f93af49218.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 192ed4e1fded83c5e3d30aeb465ca7afa141c9c3e9558ec4a34f920c8d1bb670
+    size_bytes: 4236374
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CQ-6229; GDC file 55ffd417-0e61-4fe5-9ba4-54ae15c8330a (18075aee-7064-4b22-b976-21f93af49218.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/5706bf95-e372-46d4-ae27-7f02ecfb43c7
+    path: tcga_hnsc/star_counts/TCGA-CV-7432__32771801-2560-4ca5-969e-5156d880f770.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 92e656ea65df5ebfef13142b940b97b551e35cad80449915ed58de8bd65cf163
+    size_bytes: 4233627
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7432; GDC file 5706bf95-e372-46d4-ae27-7f02ecfb43c7 (32771801-2560-4ca5-969e-5156d880f770.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/6d07e0d3-5fcb-42a2-867f-34e6d59a1892
+    path: tcga_hnsc/star_counts/TCGA-CV-A6JU__0f76a49f-1f61-4863-872c-e090e460d151.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 7d76843290d678f306b2aac4f4614836c5681ef08ed35ae6bfdf5af1c0af4953
+    size_bytes: 4230670
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-A6JU; GDC file 6d07e0d3-5fcb-42a2-867f-34e6d59a1892 (0f76a49f-1f61-4863-872c-e090e460d151.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/6ddcb8b3-c6a3-4182-9c4a-01ed10db6f96
+    path: tcga_hnsc/star_counts/TCGA-CV-7100__b4a04fab-7043-4d1d-921a-0fe2d2811304.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 62e49a40ee581f721b1a378b8edf4eb27cfa046ab371b4d2a5a3ce9e12760e79
+    size_bytes: 4229203
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7100; GDC file 6ddcb8b3-c6a3-4182-9c4a-01ed10db6f96 (b4a04fab-7043-4d1d-921a-0fe2d2811304.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/6fcfff7a-0e6b-47a6-bc96-6cc12d530d27
+    path: tcga_hnsc/star_counts/TCGA-CQ-5331__861ee15f-1ee1-4842-997d-18855a595ce2.rna_seq.augmented_star_gene_counts.tsv
+    sha256: d70ae79ac609c030e19b6efabf85b1a72c4853daf5445d1cd40129991ae26a86
+    size_bytes: 4241195
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CQ-5331; GDC file 6fcfff7a-0e6b-47a6-bc96-6cc12d530d27 (861ee15f-1ee1-4842-997d-18855a595ce2.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/6ff62568-3f20-4552-9fd1-b8e4fc21c42c
+    path: tcga_hnsc/star_counts/TCGA-CN-6018__3a2cfc92-dd3d-475c-a841-37542aaa1e8d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: a7176a97678d618deb4d93ea2395e8a5c805920d685db4ba693aa25b4ae5eee4
+    size_bytes: 4231149
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-6018; GDC file 6ff62568-3f20-4552-9fd1-b8e4fc21c42c (3a2cfc92-dd3d-475c-a841-37542aaa1e8d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/6ffe0480-a95b-433c-b7fa-a760360f7ae4
+    path: tcga_hnsc/star_counts/TCGA-CV-A45U__b51dbbcd-4a4d-41e0-955e-c3c1f0e1335d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 88998c225f02d2a5a072053d0fee42324fc2cc155b588c5bee938e8827321a2a
+    size_bytes: 4243098
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-A45U; GDC file 6ffe0480-a95b-433c-b7fa-a760360f7ae4 (b51dbbcd-4a4d-41e0-955e-c3c1f0e1335d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/74ad1b3f-bc69-49bd-9b7f-b4819ba155f9
+    path: tcga_hnsc/star_counts/TCGA-CR-7379__19838839-8987-449b-9f11-5c65d4435c18.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 47ef17eff05c2e2bac0cb7d73f429445fadbeac7d3bc5c094e85f4cbe6616516
+    size_bytes: 4235779
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-7379; GDC file 74ad1b3f-bc69-49bd-9b7f-b4819ba155f9 (19838839-8987-449b-9f11-5c65d4435c18.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/7779c5b1-c3cb-4595-a0cf-8e78085091e3
+    path: tcga_hnsc/star_counts/TCGA-CN-4731__905e9e48-18c8-4a1d-a37e-fe6afa8e808d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 6f03691b60e366b07491e32ce5a1aaad129d9a050a67d0c3b03d9df2c1b94783
+    size_bytes: 4230741
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-4731; GDC file 7779c5b1-c3cb-4595-a0cf-8e78085091e3 (905e9e48-18c8-4a1d-a37e-fe6afa8e808d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/7ad79b6a-5f2b-4315-ae69-25439113193f
+    path: tcga_hnsc/star_counts/TCGA-CN-A6V6__c1673329-c5be-4cd9-b8c5-932d4f2a184d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: cd819a913129944a30d50725b2cd24a0de17fc63278623d74feba263d8242c48
+    size_bytes: 4231604
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-A6V6; GDC file 7ad79b6a-5f2b-4315-ae69-25439113193f (c1673329-c5be-4cd9-b8c5-932d4f2a184d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/7cd19d38-2243-4cb0-9245-a5979bc7beec
+    path: tcga_hnsc/star_counts/TCGA-CR-7385__14a39525-5c76-4d76-8dda-5b42312aa08f.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 99c972770d2f1682d6f28720c7182e381663e80916f972963ed0229eaaff3f22
+    size_bytes: 4222011
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-7385; GDC file 7cd19d38-2243-4cb0-9245-a5979bc7beec (14a39525-5c76-4d76-8dda-5b42312aa08f.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/7eb3d86e-0bd6-4f3d-b4fe-c4702b46ac5e
+    path: tcga_hnsc/star_counts/TCGA-CV-A465__300cd155-2964-45e5-86e5-68e83fb3e37d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 392e403d1127a97037beda3a9e66aed59cbecdee0d51770f929c373a06c4421b
+    size_bytes: 4226539
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-A465; GDC file 7eb3d86e-0bd6-4f3d-b4fe-c4702b46ac5e (300cd155-2964-45e5-86e5-68e83fb3e37d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/8092885a-cc9c-481d-a726-89ca9f112f5c
+    path: tcga_hnsc/star_counts/TCGA-F7-7848__38d812d1-9fe8-4a3f-8e6b-56291bf6d89b.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 169533094184b0f3e05939915b9e62cb4f98280aef07da9be158daad27b2517a
+    size_bytes: 4242595
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-F7-7848; GDC file 8092885a-cc9c-481d-a726-89ca9f112f5c (38d812d1-9fe8-4a3f-8e6b-56291bf6d89b.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/810270f3-3560-4386-a7b9-bf10fa9fc0d4
+    path: tcga_hnsc/star_counts/TCGA-CN-6017__1d580915-a57b-4952-9936-810db9ce4c96.rna_seq.augmented_star_gene_counts.tsv
+    sha256: d2464d85e680fff2ca0fc1d7670e06e10517e9896538896764e142f32c89e7ab
+    size_bytes: 4225880
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-6017; GDC file 810270f3-3560-4386-a7b9-bf10fa9fc0d4 (1d580915-a57b-4952-9936-810db9ce4c96.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/88d9d603-1444-4774-addd-71412a3805bf
+    path: tcga_hnsc/star_counts/TCGA-QK-A6VB__74fcf1b1-5a5d-4503-a5a2-2eba2c8fe96a.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 867448885d3255f35d51bee25c5e1d77d96c9bb3b5990249307645e98355b6bf
+    size_bytes: 4243296
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-QK-A6VB; GDC file 88d9d603-1444-4774-addd-71412a3805bf (74fcf1b1-5a5d-4503-a5a2-2eba2c8fe96a.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/8ed43daa-0118-4481-9e7e-71c4b709b626
+    path: tcga_hnsc/star_counts/TCGA-CN-4730__37805a9e-4343-4cdb-b817-35a0f21ae98d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: e8a40c232a1359cecda008e572cae05f16a7eeed7b187a9bf785730816f08901
+    size_bytes: 4225701
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-4730; GDC file 8ed43daa-0118-4481-9e7e-71c4b709b626 (37805a9e-4343-4cdb-b817-35a0f21ae98d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/a14a2fc7-3f99-4ba8-a6e2-41a72a0f59d4
+    path: tcga_hnsc/star_counts/TCGA-QK-A6IH__75f5f579-aba4-4d39-8519-5de8997d8d77.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 3d8fdd62d77845d71134afd3e3794297e5cd0ada60bc9e2f440f98a3e1cbcb20
+    size_bytes: 4214710
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-QK-A6IH; GDC file a14a2fc7-3f99-4ba8-a6e2-41a72a0f59d4 (75f5f579-aba4-4d39-8519-5de8997d8d77.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/a1bf61fc-7a12-4b94-9b39-d468a7df361d
+    path: tcga_hnsc/star_counts/TCGA-CV-7434__d9bf7e07-0073-4fdc-952e-ab9160180871.rna_seq.augmented_star_gene_counts.tsv
+    sha256: f3b2eaaf16163085346864be240bbc25baf389d61c4665ccbc84fa43d24e77cc
+    size_bytes: 4226288
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7434; GDC file a1bf61fc-7a12-4b94-9b39-d468a7df361d (d9bf7e07-0073-4fdc-952e-ab9160180871.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/adf33b59-40ef-48fb-9dd2-1f1759582383
+    path: tcga_hnsc/star_counts/TCGA-CN-5361__c1d21cb4-9765-46ee-97fc-29f334da1d98.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 87f6563a137f5922fcfeb395efba7bf8251369b15c48bab591ccd05180922382
+    size_bytes: 4233485
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CN-5361; GDC file adf33b59-40ef-48fb-9dd2-1f1759582383 (c1d21cb4-9765-46ee-97fc-29f334da1d98.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/aed9e1a3-8037-40a6-9ced-64e414467718
+    path: tcga_hnsc/star_counts/TCGA-QK-A6II__0e69512d-90ed-4ae7-8b53-3a5703eb0237.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 0562a35f901e86eb02f2d3781b65cdd36c54d6dbcc087893c69aed1bee68f759
+    size_bytes: 4208212
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-QK-A6II; GDC file aed9e1a3-8037-40a6-9ced-64e414467718 (0e69512d-90ed-4ae7-8b53-3a5703eb0237.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/b668d085-9a13-4d78-a973-eba35b289c64
+    path: tcga_hnsc/star_counts/TCGA-CR-7376__506c4b04-b41f-49e5-84d0-b86ddd8a445e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 277a78043730bccfc16781d2d9b46fc1d9e63ee941c80235fea5df2d6c9fef50
+    size_bytes: 4242970
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CR-7376; GDC file b668d085-9a13-4d78-a973-eba35b289c64 (506c4b04-b41f-49e5-84d0-b86ddd8a445e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/b78ac464-2435-4d29-b287-61383ee4aecb
+    path: tcga_hnsc/star_counts/TCGA-CV-7427__2b972d57-78e5-4ca8-95cf-236226255a23.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 58a861f6dc9fe847bb78155e2e4ab14d09ccd89d5155b72a1fa0c4104c9a44f9
+    size_bytes: 4232333
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7427; GDC file b78ac464-2435-4d29-b287-61383ee4aecb (2b972d57-78e5-4ca8-95cf-236226255a23.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/bb7388dc-7ad7-4489-a21e-9058500f8243
+    path: tcga_hnsc/star_counts/TCGA-CV-6943__da9673bd-3c52-4835-ac40-e7fa0083115e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: fa88c95dfa948eb6b0b3f8b30e62065cf26ce85fe72f2fa219a7dc4e6effa7a8
+    size_bytes: 4223863
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-6943; GDC file bb7388dc-7ad7-4489-a21e-9058500f8243 (da9673bd-3c52-4835-ac40-e7fa0083115e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/c0d34a08-d870-45e2-94c5-24e45d1f1356
+    path: tcga_hnsc/star_counts/TCGA-CV-A45X__202c962b-eb8c-49fc-af4b-afccfdcd76be.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 0a9d4bd7b3d21093594ab6cae78d9c3774d2ee01d958228b3dc2ea3e85c30c03
+    size_bytes: 4223151
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-A45X; GDC file c0d34a08-d870-45e2-94c5-24e45d1f1356 (202c962b-eb8c-49fc-af4b-afccfdcd76be.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/c2d0bb8c-05d3-4eb9-9782-aaf4f9e91353
+    path: tcga_hnsc/star_counts/TCGA-QK-A6IG__65810d98-a5d6-412e-868e-9da261673d9f.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 7ba42c237f55796c5d223530add8013817190d35c6ca748483a2e01bf5d8c705
+    size_bytes: 4220168
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-QK-A6IG; GDC file c2d0bb8c-05d3-4eb9-9782-aaf4f9e91353 (65810d98-a5d6-412e-868e-9da261673d9f.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/c3afcb4c-394b-4876-aa92-00500e9bf740
+    path: tcga_hnsc/star_counts/TCGA-T2-A6WX__335bea46-446e-4187-9078-751fb229913d.rna_seq.augmented_star_gene_counts.tsv
+    sha256: eed4b8a34a56ffd3bbe0c4fba840fb3ee10371fa3a326215305d338ff7673da5
+    size_bytes: 4227945
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-T2-A6WX; GDC file c3afcb4c-394b-4876-aa92-00500e9bf740 (335bea46-446e-4187-9078-751fb229913d.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/cec32dbb-d343-44b8-a816-9c616d23c16a
+    path: tcga_hnsc/star_counts/TCGA-CV-7411__4d0dcf46-3239-4079-a378-36805f0b4407.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 4fec644e9ead60092322a2c897ebd221bba4cba7ee625aca8fe2775992b0b17a
+    size_bytes: 4219142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7411; GDC file cec32dbb-d343-44b8-a816-9c616d23c16a (4d0dcf46-3239-4079-a378-36805f0b4407.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/f0710431-74a4-4b7e-a715-885b09db10f2
+    path: tcga_hnsc/star_counts/TCGA-CX-7082__a3e73737-78a8-4e9c-84bf-067c50927efb.rna_seq.augmented_star_gene_counts.tsv
+    sha256: b9e3a39b84d1a912b3bcba6d2813350c4cf1324c000ae15a50bf7d5c9581e2e9
+    size_bytes: 4245339
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CX-7082; GDC file f0710431-74a4-4b7e-a715-885b09db10f2 (a3e73737-78a8-4e9c-84bf-067c50927efb.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/f196d91c-3eb9-4bbd-aabb-43a2879d6162
+    path: tcga_hnsc/star_counts/TCGA-RS-A6TP__a9df4b63-622a-4ae2-a646-7a027002d8d1.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 1d6d39322c764fe834eb79fb1e62c356b21f1eb7ed6093942f6e7e6fa53151fe
+    size_bytes: 4237241
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-RS-A6TP; GDC file f196d91c-3eb9-4bbd-aabb-43a2879d6162 (a9df4b63-622a-4ae2-a646-7a027002d8d1.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/fbe956a0-66f9-4781-8f71-0a579f0d6921
+    path: tcga_hnsc/star_counts/TCGA-CV-7101__f5291004-61f8-4c1a-a9c1-a18e91929e4e.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 71b417a34bc0dd93e6609ae5e2962e94e8e37e18095920bbebbc7864a9f6d540
+    size_bytes: 4230337
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-CV-7101; GDC file fbe956a0-66f9-4781-8f71-0a579f0d6921 (f5291004-61f8-4c1a-a9c1-a18e91929e4e.rna_seq.augmented_star_gene_counts.tsv)"
+  - url: https://api.gdc.cancer.gov/data/fe7ba23d-4829-4d00-a20f-2390c2bb22f6
+    path: tcga_hnsc/star_counts/TCGA-BA-A8YP__60d8aac8-728d-4dea-8449-1bb1789fe9e0.rna_seq.augmented_star_gene_counts.tsv
+    sha256: 75e913a0fbafa4584d59a9ce8c150de9e6f6deacc22146ec5ba01c2150f4b006
+    size_bytes: 4237324
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-HNSC RNA-Seq STAR-Counts (Gene Expression Quantification); case TCGA-BA-A8YP; GDC file fe7ba23d-4829-4d00-a20f-2390c2bb22f6 (60d8aac8-728d-4dea-8449-1bb1789fe9e0.rna_seq.augmented_star_gene_counts.tsv)"

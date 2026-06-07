@@ -56,17 +56,20 @@ curl -fsSL -H "Content-Type: application/json" -d "$QUERY" "$GDC/files" \
 N_AVAILABLE=$(python3 -c "import json; d=json.load(open('$DEST/_gdc_file_list.json')); print(len(d['data']['hits']))")
 echo "$LOG_PREFIX GDC returned $N_AVAILABLE candidate files"
 
-# ---- Step 2: random-stratified subset of SUBSET_N --------------------------
+# ---- Step 2: deterministic random subset of SUBSET_N -----------------------
 python3 - <<PY > "$DEST/_subset_manifest.tsv"
 import json, random
-random.seed(42)
 d = json.load(open("$DEST/_gdc_file_list.json"))
 hits = d["data"]["hits"]
-# Crude stratification: 25 random + 25 random (we don't have HPV status from
-# the file list endpoint without a separate cases query; the genomics arm
-# will join HPV status from the clinical TSV pulled separately).
+# Reproducibility: GDC does not guarantee a stable hit order, so sort by file_id
+# BEFORE the seeded shuffle. Without this pre-sort the seed=42 shuffle picks a
+# different n=$SUBSET_N on every run. (This is a plain random subset -- NOT
+# stratified by HPV status; HPV is joined later from the clinical TSV for
+# analysis, but is not used for selection.)
+hits = sorted(hits, key=lambda h: h["file_id"])
+random.seed(42)
 random.shuffle(hits)
-subset = hits[: $SUBSET_N]
+subset = sorted(hits[: $SUBSET_N], key=lambda h: h["file_id"])  # stable output order
 print("file_id\tcase_submitter_id\tfile_name")
 for h in subset:
     sub = h.get("cases", [{}])[0].get("submitter_id", "?")
@@ -89,7 +92,8 @@ tail -n +2 "$DEST/_subset_manifest.tsv" | while IFS=$'\t' read -r FILE_ID CASE_I
   curl -fL --continue-at - -o "$OUT" "$GDC/data/$FILE_ID" || {
     echo "$LOG_PREFIX WARNING: $CASE_ID download failed; continuing"
   }
-  # GDC sends gzipped TSV; leave compressed (genomics arm reads gzipped natively)
+  # GDC serves STAR counts as PLAIN TSV (not gzipped); saved as-is. The genomics
+  # arm's _open_star_counts handles both plain and .gz transparently.
 done
 
 # ---- Step 4: pull clinical metadata for the selected cases -----------------
@@ -109,9 +113,21 @@ print(json.dumps(q))
 PY
 )
 curl -fsSL -H "Content-Type: application/json" -d "$CLINICAL_QUERY" "$GDC/cases" \
-  > "$DEST/clinical.tsv" || {
+  > "$DEST/clinical.raw.tsv" || {
     echo "$LOG_PREFIX WARNING: clinical TSV pull failed; v0.1 retries"
   }
+# Canonicalize: header + rows sorted lexicographically, so the committed sha256
+# in data/manifest.yaml is byte-stable across runs (GDC row order is not stable).
+if [[ -s "$DEST/clinical.raw.tsv" ]]; then
+  python3 - "$DEST/clinical.raw.tsv" "$DEST/clinical.tsv" <<'PY'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+lines = open(src, encoding="utf-8").read().rstrip("\n").split("\n")
+head, rows = lines[0], sorted(lines[1:])
+open(dst, "w", encoding="utf-8").write("\n".join([head] + rows) + "\n")
+PY
+  rm -f "$DEST/clinical.raw.tsv"
+fi
 
 # ---- Step 5: record sha256 sums --------------------------------------------
 echo "$LOG_PREFIX computing sha256 sums"
