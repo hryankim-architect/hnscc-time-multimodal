@@ -3,3 +3,7 @@
 !.gitignore
 !manifest.yaml
 !README.md
+# IHC checksum ledger (text, not raw data): rel_path + sha256 + direct URL
+!pmc10571229/
+pmc10571229/*
+!pmc10571229/rois_manifest.tsv

@@ -45,21 +45,25 @@ clinical:
   license: NIH GDC Data Use Agreement (open tier)
   source: "Clinical metadata (gender, race, vital status, diagnosis, subsite, survival, smoking) for the n=50 TCGA-HNSC cases in the genomics subset."
 
-# ----- IHC ground truth (TCIA, RESOLVED 2026-06-07) ---------------------------
+# ----- IHC ground truth (TCIA, RESOLVED + CHECKSUMMED 2026-06-07) --------------
 # Earlier notes guessed a Zenodo record; the canonical home is The Cancer Imaging
-# Archive. Images are distributed via TCIA faspex/Aspera (not a plain URL), so
-# per-file sha256 are not pinned here; the source + DOI below are authoritative.
+# Archive. The TCIA web download is faspex/Aspera, but every ROI image is also
+# directly HTTPS-fetchable from the TCIA pathology host (pathdb), so all 3212 ROIs
+# are now pinned by sha256 in data/pmc10571229/rois_manifest.tsv (rel_path + sha256
+# + direct URL). That ledger file's own sha256 is pinned here, and it is verified
+# byte-stable on re-download.
 ihc:
   collection: HNSCC-mIF-mIHC-comparison (TCIA, Version 2, 2023-08-31)
   doi: 10.7937/TCIA.2020.T90F-WB82
   url: https://www.cancerimagingarchive.net/collection/hnscc-mif-mihc-comparison/
   patients: 8
+  rois: 3212
   size_gb: 1.01
-  images: 3216
   format: PNG
   license: CC-BY-4.0
-  download: "TCIA faspex/Aspera (IBM Aspera Connect); see scripts/download_pmc10571229.sh"
-  checksums: "pending -- multi-GB image set via Aspera, not pinned in this ledger"
+  download: "direct pathdb HTTPS per file (no Aspera); see scripts/download_pmc10571229.sh"
+  checksums_file: pmc10571229/rois_manifest.tsv
+  checksums_file_sha256: 08c912596a677eb04512c17a2671cb218db46688b6097aa46ae6377870631a5d
   source: "Ghahremani et al. 2023, MICCAI (PMC10571229). 8 HNSCC patients; 9 ROIs/slide (3 tumor-core T, 3 margin M, 3 stroma S), each subdivided into 512x512 patches; file notation Case[id]_[T/M/S][1-3]_[ROI_index]_[marker]."
 
 # ----- genomics inputs: TCGA-HNSC RNA-Seq STAR-Counts (n=50) -----------------

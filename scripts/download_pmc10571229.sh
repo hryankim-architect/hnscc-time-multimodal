@@ -26,40 +26,40 @@ else
   echo "$LOG_PREFIX source-repo already present, skipping clone"
 fi
 
-# ---- Step 2: the ROI image set (RESOLVED 2026-06-07: TCIA, not Zenodo) ------
+# ---- Step 2: fetch the ROI image set (RESOLVED 2026-06-07: TCIA via pathdb) -
 # The canonical home of the PMC10571229 HNSCC mIF/mIHC dataset is The Cancer
-# Imaging Archive, NOT Zenodo (the earlier Zenodo record 8367318 was wrong --
-# it yielded a 7-KB stray .py):
+# Imaging Archive, NOT Zenodo (the earlier Zenodo record 8367318 was wrong).
 #
 #   Collection : HNSCC-mIF-mIHC-comparison (TCIA, Version 2, 2023-08-31)
-#   DOI        : 10.7937/TCIA.2020.T90F-WB82
-#   Landing    : https://www.cancerimagingarchive.net/collection/hnscc-mif-mihc-comparison/
-#   Contents   : 8 patients, 3,216 PNG images (~1.01 GB), CC BY 4.0
-#   Naming      : Case[id]_[T/M/S][1-3]_[ROI_index]_[marker]
+#   DOI        : 10.7937/TCIA.2020.T90F-WB82  |  CC BY 4.0  |  8 patients
+#   Contents   : 3212 PNG ROIs (~1.01 GB); naming Case[id]_[T/M/S][1-3]_[idx]_[marker]
 #
-# TCIA distributes this package via faspex/Aspera (IBM Aspera Connect), not a
-# plain HTTP(S) URL, so it cannot be curl'd unattended here. Download it once
-# with Aspera Connect from the landing page above and unpack into:
-#
-#   data/pmc10571229/rois/
-#
-# Then run Step 3 below to record sha256 sums. (Per-file checksums are therefore
-# NOT pinned in data/manifest.yaml; the ihc: block there cites the DOI as the
-# authoritative source. Wiring an automated TCIA fetch is tracked in ROADMAP.)
-echo "$LOG_PREFIX IHC ROI set lives on TCIA (DOI 10.7937/TCIA.2020.T90F-WB82),"
-echo "$LOG_PREFIX downloaded via Aspera Connect into data/pmc10571229/rois/ -- see header."
-echo "$LOG_PREFIX done (source-repo cloned; ROI images are a manual TCIA/Aspera step)"
-
-# ---- Step 3: record sha256 sums for whatever ROI images are present ---------
-mkdir -p "$DEST/rois"
-if find "$DEST/rois" -type f \( -name '*.png' -o -name '*.tif' -o -name '*.tiff' \) | head -1 | grep -q .; then
-  echo "$LOG_PREFIX computing sha256 sums for ROI images"
-  cd "$DEST"
-  find . -type f \( -name '*.tif' -o -name '*.tiff' -o -name '*.png' -o -name '*.zip' -o -name '*.tar.gz' \) \
-    -exec shasum -a 256 {} \; > "$DEST/sha256sums.txt"
-  wc -l "$DEST/sha256sums.txt"
-else
-  echo "$LOG_PREFIX no ROI images present yet -- skipping sha256 (download from TCIA first)"
+# TCIA's web bundle is faspex/Aspera, but every ROI is *also* directly HTTPS-
+# fetchable from the TCIA pathology host (pathdb). data/pmc10571229/rois_manifest.tsv
+# (committed) pins all 3212: rel_path <TAB> sha256 <TAB> url. We download each by
+# URL and verify its sha256, so no Aspera client is needed.
+LEDGER="$REPO_ROOT/data/pmc10571229/rois_manifest.tsv"
+if [[ ! -f "$LEDGER" ]]; then
+  echo "$LOG_PREFIX ERROR: $LEDGER missing (it is committed; check out the repo)."; exit 2
 fi
+mkdir -p "$DEST/rois"
+n=0; ok=0; bad=0
+while IFS=$'\t' read -r REL SHA URL; do
+  [[ "$REL" == \#* || -z "$REL" ]] && continue
+  n=$((n+1))
+  OUT="$DEST/rois/$REL"; mkdir -p "$(dirname "$OUT")"
+  if [[ -f "$OUT" ]] && [[ "$(shasum -a 256 "$OUT" | cut -d' ' -f1)" == "$SHA" ]]; then
+    ok=$((ok+1)); continue
+  fi
+  curl -fsSL --retry 3 -o "$OUT" "${URL/http:\/\//https://}" || { echo "$LOG_PREFIX WARN download failed: $REL"; bad=$((bad+1)); continue; }
+  got="$(shasum -a 256 "$OUT" | cut -d' ' -f1)"
+  if [[ "$got" == "$SHA" ]]; then ok=$((ok+1)); else echo "$LOG_PREFIX SHA MISMATCH: $REL"; bad=$((bad+1)); fi
+  [[ $((n % 200)) -eq 0 ]] && echo "$LOG_PREFIX ...$n verified=$ok"
+done < "$LEDGER"
+echo "$LOG_PREFIX ROI fetch done: $ok/$n verified, $bad failed"
+
+# ---- Step 3: integrity check of the committed ledger itself -----------------
+# (The ihc.checksums_file_sha256 in data/manifest.yaml should match this.)
+echo "$LOG_PREFIX ledger sha256: $(shasum -a 256 "$LEDGER" | cut -d' ' -f1)"
 
 echo "$LOG_PREFIX done"

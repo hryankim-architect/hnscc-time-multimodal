@@ -14,7 +14,8 @@ from pathlib import Path
 
 import yaml
 
-MANIFEST = Path(__file__).resolve().parents[1] / "data" / "manifest.yaml"
+REPO = Path(__file__).resolve().parents[1]
+MANIFEST = REPO / "data" / "manifest.yaml"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 TCIA_DOI = "10.7937/TCIA.2020.T90F-WB82"
 
@@ -56,6 +57,36 @@ class TestIhcBlock:
         assert "cancerimagingarchive.net" in ihc["url"]
         assert str(ihc["license"]).upper().startswith("CC-BY")
         assert ihc["patients"] == 8
+
+    def test_not_pending_and_pinned(self):
+        import hashlib
+
+        ihc = _load()["ihc"]
+        # IHC checksums are resolved, not "pending".
+        assert "pending" not in str(ihc).lower()
+        assert ihc["rois"] == 3212
+        assert HEX64.match(ihc["checksums_file_sha256"])
+        # The committed ROI ledger exists and its sha256 matches the pinned value.
+        ledger = REPO / "data" / ihc["checksums_file"]
+        assert ledger.exists(), f"missing committed IHC ledger {ledger}"
+        got = hashlib.sha256(ledger.read_bytes()).hexdigest()
+        assert got == ihc["checksums_file_sha256"], "IHC ledger sha256 != pinned value"
+
+    def test_ledger_rows_are_real(self):
+        ihc = _load()["ihc"]
+        ledger = REPO / "data" / ihc["checksums_file"]
+        rows = [
+            ln for ln in ledger.read_text(encoding="utf-8").splitlines()
+            if ln and not ln.startswith("#")
+        ]
+        assert len(rows) == 3212, f"expected 3212 ROI rows, got {len(rows)}"
+        seen: set[str] = set()
+        for ln in rows:
+            rel, sha, url = ln.split("\t")
+            assert HEX64.match(sha), f"bad sha for {rel}"
+            assert "cancerimagingarchive.net" in url
+            assert rel not in seen, f"duplicate rel_path {rel}"
+            seen.add(rel)
 
 
 class TestGenomicsInputs:
