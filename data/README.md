@@ -19,14 +19,15 @@ Two arms (schema documented inline in `manifest.yaml`):
   own sha256 is pinned in the `ihc:` block). `scripts/download_pmc10571229.sh`
   fetches each by URL and verifies — no Aspera client needed.
 
-**How the data is actually prepared:** run `scripts/download_tcga_hnsc.sh`, which
-writes `tcga_hnsc/_subset_manifest.tsv` + `star_counts/<case>__<file>.tsv` +
-`clinical.tsv` — the layout `cohort.load_cohort` reads. `make data`
-(`pipeline fetch`) downloads the STAR `inputs` by URL to the same paths and
-verifies sha256, but does not yet build the subset index or fetch clinical;
-wiring `pipeline fetch` end-to-end is a tracked follow-up (see `ROADMAP.md`).
-The IHC ROIs are fetched + sha256-verified by `scripts/download_pmc10571229.sh`
-straight from `pmc10571229/rois_manifest.tsv` (direct HTTPS, no Aspera).
+**How the data is prepared:** `make data` (`pipeline fetch`) is now end-to-end —
+it downloads the STAR `inputs` (sha256-verified), **derives
+`tcga_hnsc/_subset_manifest.tsv`** from them, and **fetches + canonicalizes the
+`clinical` block** (byte-stable, sha256-verified). That is exactly the layout
+`cohort.load_cohort` reads, so `make data && make run` is reproducible from this
+manifest alone. (`scripts/download_tcga_hnsc.sh` remains as an equivalent shell
+path.) The IHC ROIs are fetched + sha256-verified by
+`scripts/download_pmc10571229.sh` straight from `pmc10571229/rois_manifest.tsv`
+(direct HTTPS, no Aspera).
 
 Tiny fixtures for tests go under `tests/fixtures/`, not here. Keep
 `manifest.yaml` lean: **every input must be small and necessary**. Adding one is

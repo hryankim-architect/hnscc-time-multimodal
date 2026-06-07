@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,43 +41,132 @@ def _checksum(path: Path) -> str:
     return h.hexdigest()
 
 
+def _download(url: str, dest: Path, *, timeout: float = 60.0, retries: int = 4) -> None:
+    """Download ``url`` to ``dest`` with a per-attempt timeout + retries."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    last: Exception | None = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                dest.write_bytes(resp.read())
+            return
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:  # noqa: PERF203
+            last = exc
+            time.sleep(min(2**attempt, 8))
+    raise RuntimeError(f"failed to download {url} after {retries} attempts: {last}")
+
+
+def _star_meta(rel: str, url: str) -> tuple[str, str, str]:
+    """(file_id, case_submitter_id, file_name) from a STAR input url + path.
+
+    Path layout is ``tcga_hnsc/star_counts/<case>__<file_name>``; url ends in the
+    GDC ``file_id``.
+    """
+    name = Path(rel).name
+    case, _, file_name = name.partition("__")
+    file_id = url.rsplit("/", 1)[1]
+    return file_id, case, file_name
+
+
+def write_subset_manifest(rows: list[tuple[str, str, str]], out_dir: Path) -> Path:
+    """Write ``tcga_hnsc/_subset_manifest.tsv`` (file_id/case/file_name).
+
+    This is the cohort index ``cohort.load_cohort`` requires; building it from the
+    manifest's STAR ``inputs`` is what lets ``make data`` (not just the shell
+    download script) produce the layout ``make run`` reads.
+    """
+    sm = out_dir / "tcga_hnsc" / "_subset_manifest.tsv"
+    sm.parent.mkdir(parents=True, exist_ok=True)
+    body = "file_id\tcase_submitter_id\tfile_name\n" + "".join(
+        f"{fid}\t{case}\t{fn}\n" for fid, case, fn in sorted(rows)
+    )
+    sm.write_text(body, encoding="utf-8")
+    return sm
+
+
+def fetch_clinical(clinical: dict[str, Any], case_ids: list[str], out_dir: Path) -> dict[str, Any]:
+    """Fetch + canonicalize + verify the clinical TSV for ``case_ids``.
+
+    POSTs the GDC ``/cases`` query in the manifest's ``clinical`` block, then
+    canonicalizes to ``header + rows sorted`` (byte-stable) before writing, so the
+    on-disk sha256 matches the pinned value across runs.
+    """
+    rel = clinical["path"]
+    dest = out_dir / rel
+    expected = clinical.get("sha256")
+    if dest.exists() and expected and _checksum(dest) == expected:
+        return {"path": str(dest), "status": "cached"}
+
+    payload = {
+        "filters": {"op": "in", "content": {"field": "submitter_id", "value": sorted(case_ids)}},
+        "fields": ",".join(clinical.get("fields", [])),
+        "format": "TSV",
+        "size": str(len(case_ids) + 10),
+    }
+    req = urllib.request.Request(
+        clinical["endpoint"],
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        raw = resp.read()
+    lines = raw.decode("utf-8").rstrip("\n").split("\n")
+    canon = ("\n".join([lines[0]] + sorted(lines[1:])) + "\n").encode("utf-8")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(canon)
+    actual = _checksum(dest)
+    status = "downloaded" if (not expected or actual == expected) else "checksum_mismatch"
+    return {"path": str(dest), "status": status, "sha256": actual}
+
+
 def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
-    """Download every entry in the manifest; verify SHA-256 checksums."""
+    """Fetch every public input and reproduce the layout ``make run`` reads.
+
+    Downloads the STAR ``inputs`` (sha256-verified), derives
+    ``tcga_hnsc/_subset_manifest.tsv`` from them, and fetches the ``clinical``
+    block — so ``make data && make run`` is reproducible from this manifest
+    alone, no shell download script required.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     with manifest_path.open("r", encoding="utf-8") as fh:
         manifest = yaml.safe_load(fh) or {}
 
     results: list[dict[str, Any]] = []
+    rows: list[tuple[str, str, str]] = []
     for entry in manifest.get("inputs", []):
         url = entry["url"]
         rel = entry["path"]
         expected = entry.get("sha256")
-        size_mb = entry.get("size_mb")
         dest = out_dir / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
 
         if dest.exists() and expected and _checksum(dest) == expected:
             results.append({"path": str(dest), "status": "cached"})
-            continue
+        else:
+            _download(url, dest)
+            actual = _checksum(dest)
+            if expected and actual != expected:
+                results.append({
+                    "path": str(dest),
+                    "status": "checksum_mismatch",
+                    "expected": expected,
+                    "actual": actual,
+                })
+            else:
+                results.append({"path": str(dest), "status": "downloaded", "sha256": actual})
+        rows.append(_star_meta(rel, url))
 
-        urllib.request.urlretrieve(url, dest)
-        actual = _checksum(dest)
-        if expected and actual != expected:
-            results.append({
-                "path": str(dest),
-                "status": "checksum_mismatch",
-                "expected": expected,
-                "actual": actual,
-            })
-            continue
-        results.append({
-            "path": str(dest),
-            "status": "downloaded",
-            "sha256": actual,
-            "size_mb": size_mb,
-        })
+    out: dict[str, Any] = {"inputs": results}
 
-    return {"inputs": results}
+    if rows:
+        out["subset_manifest"] = str(write_subset_manifest(rows, out_dir))
+
+    clinical = manifest.get("clinical")
+    if clinical:
+        case_ids = [case for _, case, _ in rows]
+        out["clinical"] = fetch_clinical(clinical, case_ids, out_dir)
+
+    return out
 
 
 def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> dict[str, Any]:

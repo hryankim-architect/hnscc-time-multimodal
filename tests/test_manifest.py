@@ -112,3 +112,40 @@ class TestGenomicsInputs:
         for e in _load()["inputs"]:
             file_id = e["url"].rsplit("/", 1)[1]
             assert file_id in e["source"], f"{file_id} missing from its source line"
+
+
+class TestFetchWiring:
+    """make data (pipeline fetch) reproduces the layout make run reads — offline."""
+
+    def test_star_meta_parses_path_and_url(self):
+        from hnscc_time import pipeline
+
+        url = "https://api.gdc.cancer.gov/data/abc-123"
+        path = "tcga_hnsc/star_counts/TCGA-XX-1234__file.rna_seq.augmented_star_gene_counts.tsv"
+        fid, case, fn = pipeline._star_meta(path, url)
+        assert fid == "abc-123"
+        assert case == "TCGA-XX-1234"
+        assert fn == "file.rna_seq.augmented_star_gene_counts.tsv"
+
+    def test_subset_manifest_matches_cohort_loader_columns(self, tmp_path):
+        from hnscc_time import pipeline
+
+        rows = [("fid2", "TCGA-B", "b.tsv"), ("fid1", "TCGA-A", "a.tsv")]
+        sm = pipeline.write_subset_manifest(rows, tmp_path)
+        lines = sm.read_text().splitlines()
+        # Header is exactly what cohort.load_cohort expects (it renames
+        # case_submitter_id -> submitter_id).
+        assert lines[0] == "file_id\tcase_submitter_id\tfile_name"
+        assert len(lines) - 1 == 2
+        # Rows are sorted (deterministic output).
+        assert lines[1].startswith("fid1\t") and lines[2].startswith("fid2\t")
+
+    def test_subset_manifest_built_from_real_inputs(self, tmp_path):
+        from hnscc_time import pipeline
+
+        inputs = _load()["inputs"]
+        rows = [pipeline._star_meta(e["path"], e["url"]) for e in inputs]
+        sm = pipeline.write_subset_manifest(rows, tmp_path)
+        data = sm.read_text().splitlines()[1:]
+        assert len(data) == 50
+        assert len({ln.split("\t")[1] for ln in data}) == 50  # 50 distinct cases

@@ -13,10 +13,11 @@ This file mirrors only the public-facing engineering plan.
 > STAR-Counts subset + canonical clinical TSV by sha256, and the IHC arm is fully
 > resolved + checksummed — all 3212 TCIA ROIs (DOI `10.7937/TCIA.2020.T90F-WB82`)
 > are pinned by sha256 in `data/pmc10571229/rois_manifest.tsv` and fetched by
-> direct HTTPS (no Aspera). Remaining wiring task: make `pipeline fetch` build
-> `tcga_hnsc/_subset_manifest.tsv` and fetch the `clinical:` block so
-> `make data && make run` is reproducible from the manifest alone (today the data
-> path is `scripts/download_tcga_hnsc.sh`).
+> direct HTTPS (no Aspera). **`pipeline fetch` is now wired end-to-end** — it
+> builds `tcga_hnsc/_subset_manifest.tsv` from the STAR inputs and fetches the
+> canonical `clinical:` block, so `make data && make run` is reproducible from
+> the manifest alone (the `scripts/download_*.sh` scripts remain as an equivalent
+> path).
 
 > **Status: shipped.** Milestones v0.0–v0.3 are complete and tagged (`v0.0`,
 > `v0.3`); the three arms run end to end and the as-built result tables are in
