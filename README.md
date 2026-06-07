@@ -50,7 +50,7 @@ in the per-arm sections below.
 | **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ | ✓ | ✓ |
 | **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** | ✓ | ✓ |
 | **Arm 4, HPV± overall-survival stratification** | — | — | — | — | **✓ KM + log-rank + Cox HR on n=110 HPV-tested TCGA-HNSC** | ✓ |
-| **Arm 5, Python↔R bridge deconvolution cross-check** | — | — | — | — | — | **✓ base-R marker z-score vs ssGSEA, Spearman agreement (runs where R is installed; skip-if-no-R)** |
+| **Arm 5, Python↔R bridge deconvolution cross-check** | — | — | — | — | — | **✓ base-R marker z-score vs ssGSEA, mean Spearman 0.96 on n=50 (runs where R is installed; skip-if-no-R)** |
 
 See `ROADMAP.md` for what the released contract looks like at each tag,
 and `docs/what-is-out-of-scope.md` for what each arm intentionally does
@@ -68,6 +68,7 @@ the *comparison*, not any single arm's number:
 | Arm 1 (IHC) | 5 DeepLIIF Sample_Large_Tissues ROIs (RGB tissue), Cellpose 4.x CPU segmentation | **6,725 nuclei segmented**; 5 inflamed / 0 excluded / 0 desert (RGB heuristic R/G/B->marker placeholder) |
 | Arm 3 (Calibration) | K-NN on n=5 IHC reference, per-cell-type linear cal, leave-one-IHC-out validation | **mean LOO MAE 0.210 vs intercept-only baseline 0.466, calibration adds 55% MAE reduction over "predict cohort mean"** |
 | Arm 4 (HPV± survival) | n=110 HPV-tested TCGA-HNSC (42 HPV+, 68 HPV-), overall survival, KM + log-rank + univariate Cox | **Cox HR 0.48 (95% CI 0.21–1.10) for HPV+**, i.e. the expected protective direction — **trend-level, not significant** (log-rank p=0.076) in this mixed-subsite subset. Reported as-is: HPV's prognostic effect concentrates in the oropharynx, and the HPV-tested subset is not enriched for it. |
+| Arm 5 (R-bridge deconvolution) | n=50 TCGA-HNSC, base-R marker **z-score** (via `Rscript`) vs Python ssGSEA **mean-rank**, Spearman per cell type | **mean Spearman 0.96** (CD3 0.96 / CD8 0.97 / FoxP3 0.97 / PanCK 0.95) — the Python↔R bridge round-trips correctly and the two normalizations rank samples near-identically. High agreement is expected (shared marker panels); it confirms bridge integrity + normalization-robustness, not two unrelated methods. |
 
 The Arm 3 headline is the most defensible single number this repo
 produces: it shows that nearest-neighbor cross-cohort calibration is
