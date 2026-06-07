@@ -85,8 +85,18 @@ def hpv_survival_summary(df: pd.DataFrame) -> dict[str, Any]:
         duration_col="os_days",
         event_col="os_event",
     )
-    hr = float(np.exp(cox.params_["hpv_pos"]))
-    ci_low, ci_high = (float(x) for x in np.exp(cox.confidence_intervals_.loc["hpv_pos"].values))
+    def _finite(x: float) -> float | None:
+        x = float(x)
+        return x if np.isfinite(x) else None
+
+    # On a separated / tiny cohort the CI can blow up; exp() may overflow to inf.
+    # Suppress the overflow warning and report non-finite bounds as null rather
+    # than emitting "Infinity" into the JSON summary.
+    with np.errstate(over="ignore"):
+        hr = float(np.exp(cox.params_["hpv_pos"]))
+        ci_low, ci_high = (
+            _finite(v) for v in np.exp(cox.confidence_intervals_.loc["hpv_pos"].values)
+        )
     p = float(cox.summary.loc["hpv_pos", "p"])
     logrank_p = float(lr.p_value)
 
