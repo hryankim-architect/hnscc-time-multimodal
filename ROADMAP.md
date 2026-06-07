@@ -23,7 +23,10 @@ This file mirrors only the public-facing engineering plan.
 > `v0.3`); **v0.4 adds Arm 4 (HPV± overall-survival stratification)** — KM +
 > log-rank + Cox on n=110 HPV-tested TCGA-HNSC, reported at trend level
 > (HR 0.48, log-rank p=0.076) with its power limits stated (see
-> `docs/release-notes/v0.4.md`). The arms run end to end and the as-built result
+> `docs/release-notes/v0.4.md`). **v0.5 adds Arm 5 (Python↔R bridge deconvolution
+> cross-check)** — base-R marker z-score vs Arm-2 ssGSEA (Spearman); runs where R
+> is installed, skip-if-no-R, no agreement number claimed until run on an R host
+> (see `docs/release-notes/v0.5.md`). The arms run end to end and the as-built result
 > tables are in the README. The checklist below is kept as the original sprint
 > plan. One deviation from it: the IHC arm (v0.2) shipped on 5 DeepLIIF
 > Sample_Large_Tissues ROIs rather than the originally scoped PMC10571229 set;

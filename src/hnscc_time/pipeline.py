@@ -438,6 +438,47 @@ def run_pipeline(run_name: str, out_dir: Path, data_dir: Path | None = None) -> 
             arm_summaries["arm4_hpv_survival"] = {"failed": f"{type(exc).__name__}: {exc}"}
         metrics["arm4_elapsed_ms"] = (time.time() - arm4_t0) * 1000.0
 
+        # ---- Arm 5 (R-bridge deconvolution cross-check) --------------
+        # Optional Python<->R bridge: skips cleanly when R is absent (CI/sandbox)
+        # or when the cohort has no STAR data.
+        arm5_t0 = time.time()
+        try:
+            from hnscc_time import cohort as cohort_mod
+            from hnscc_time import deconv_r as deconv_mod
+
+            cohort_df5 = cohort_mod.load_cohort(data_dir)
+            arm5 = deconv_mod.run_deconv_arm(cohort_df5, out_dir / "deconv_r")
+            audit.emit(
+                action="deconv.r_bridge.cross_method",
+                job_id=job_id,
+                fields={k: arm5[k] for k in ("n_samples", "mean_spearman") if k in arm5},
+            )
+            if isinstance(arm5.get("mean_spearman"), int | float):
+                metrics["arm5_mean_spearman"] = float(arm5["mean_spearman"])
+            arm_summaries["arm5_deconv_r"] = arm5
+        except deconv_mod.RDeconvUnavailable as exc:
+            audit.emit(
+                action="arm5_skipped_no_R",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm5_deconv_r"] = {"skipped": "R not available"}
+        except FileNotFoundError as exc:
+            audit.emit(
+                action="arm5_skipped_missing_data",
+                job_id=job_id,
+                fields={"reason": str(exc)},
+            )
+            arm_summaries["arm5_deconv_r"] = {"skipped": str(exc)}
+        except Exception as exc:  # noqa: BLE001 — intentional arm isolation
+            audit.emit(
+                action="arm5_failed",
+                job_id=job_id,
+                fields={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            arm_summaries["arm5_deconv_r"] = {"failed": f"{type(exc).__name__}: {exc}"}
+        metrics["arm5_elapsed_ms"] = (time.time() - arm5_t0) * 1000.0
+
         metrics["pipeline_elapsed_ms"] = (time.time() - t_pipeline) * 1000.0
         tracking.log_metrics(metrics)
 

@@ -42,14 +42,15 @@ the entire 3-arm pipeline landed in a single Sunday-evening session after
 v0.0 shipped. The trade-offs that made this possible are documented openly
 in the per-arm sections below.
 
-| Layer | v0.0 | v0.1 (Arm 2) | v0.2 (Arm 1) | v0.3 (Arm 3) | v0.4 (Arm 4) |
-|---|---|---|---|---|---|
-| Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Repo skeleton + CI | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ | ✓ |
-| **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ | ✓ |
-| **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** | ✓ |
-| **Arm 4, HPV± overall-survival stratification** | — | — | — | — | **✓ KM + log-rank + Cox HR on n=110 HPV-tested TCGA-HNSC** |
+| Layer | v0.0 | v0.1 (Arm 2) | v0.2 (Arm 1) | v0.3 (Arm 3) | v0.4 (Arm 4) | v0.5 (Arm 5) |
+|---|---|---|---|---|---|---|
+| Substrate (audit / tracking / canary) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Repo skeleton + CI | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Arm 2, Genomics deconvolution on RNA-seq** | — | **✓ TCGA-HNSC n=50, ssGSEA-style scoring on curated immune signatures** | ✓ | ✓ | ✓ | ✓ |
+| **Arm 1, IHC cell segmentation** | — | — | **✓ Cellpose nuclei on 5 real DeepLIIF Sample_Large_Tissues ROIs** | ✓ | ✓ | ✓ |
+| **Arm 3, Cross-cohort calibration + `predict_time_from_genomics()`** | — | — | — | **✓ NN + per-cell-type linear cal + LOO validation** | ✓ | ✓ |
+| **Arm 4, HPV± overall-survival stratification** | — | — | — | — | **✓ KM + log-rank + Cox HR on n=110 HPV-tested TCGA-HNSC** | ✓ |
+| **Arm 5, Python↔R bridge deconvolution cross-check** | — | — | — | — | — | **✓ base-R marker z-score vs ssGSEA, Spearman agreement (runs where R is installed; skip-if-no-R)** |
 
 See `ROADMAP.md` for what the released contract looks like at each tag,
 and `docs/what-is-out-of-scope.md` for what each arm intentionally does
