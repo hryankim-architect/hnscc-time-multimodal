@@ -114,3 +114,39 @@ def test_run_calibration_arm_end_to_end(tmp_path):
     assert len(list((out_dir / "calibrated_predictions").glob("*.json"))) == 5
     # Calibration report exists
     assert (out_dir / "calibration_report.json").exists()
+
+
+def test_loo_validate_deterministic_and_pinned():
+    """Regression pin for the LOO calibration math on a fixed synthetic fixture.
+
+    The headline cross-cohort result (mean LOO MAE 0.210 vs intercept-only 0.466)
+    requires the external TCGA-HNSC + DeepLIIF cohorts, which are gitignored and not
+    clone-reproducible. This test instead pins ``loo_validate``'s *deterministic
+    output* on an in-repo synthetic fixture, so any code change that alters the
+    calibration math is caught in CI even though the headline number itself cannot be
+    regenerated from a bare clone.
+    """
+    ihc = [
+        _make_profile("i0", "deepliif_sample", "mIHC", c3=2.0, c8=1.5, fp=0.5, pck=3.0),
+        _make_profile("i1", "deepliif_sample", "mIHC", c3=1.7, c8=1.2, fp=0.4, pck=3.3),
+        _make_profile("i2", "deepliif_sample", "mIHC", c3=1.4, c8=0.9, fp=0.6, pck=3.6),
+    ]
+    gen = [
+        _make_profile(f"g{i}", "tcga_hnsc", "rna_seq", c3=1.0 + i * 0.2, c8=1.0, fp=0.5, pck=2.0)
+        for i in range(5)
+    ]
+
+    a = calibrate.loo_validate(ihc, gen, k=3)
+    b = calibrate.loo_validate(ihc, gen, k=3)
+    assert a == b  # no RNG anywhere in the path: byte-for-byte reproducible
+
+    expected = {
+        "CD3":   {"loo_mae": 0.350, "intercept_mae": 0.300},
+        "CD8":   {"loo_mae": 0.300, "intercept_mae": 0.300},
+        "FoxP3": {"loo_mae": 0.100, "intercept_mae": 0.100},
+        "PanCK": {"loo_mae": 0.300, "intercept_mae": 0.300},
+    }
+    assert set(a) == set(expected)
+    for cell, exp in expected.items():
+        assert a[cell]["loo_mae"] == pytest.approx(exp["loo_mae"], abs=1e-6)
+        assert a[cell]["intercept_mae"] == pytest.approx(exp["intercept_mae"], abs=1e-6)
